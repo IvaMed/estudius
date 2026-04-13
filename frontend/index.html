@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estudius - Encuentra tu Profesor Ideal</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- HEADER -->
+  <header>
+    <div class="header-left">
+      <svg class="header-logo" viewBox="0 0 140 150" xmlns="http://www.w3.org/2000/svg">
+        <!-- Mortarboard (Tapa de graduación) - 3D effect -->
+        <!-- Top surface (front) -->
+        <path d="M 20 50 L 70 20 L 120 50 L 120 60 L 70 32 L 20 60 Z" fill="#274580"/>
+        <!-- Right side (shadow) -->
+        <path d="M 70 32 L 120 50 L 120 60 L 70 42 Z" fill="#1C2E57"/>
+        <!-- Bottom edge -->
+        <path d="M 20 60 L 70 42 L 120 60 L 120 65 L 70 47 L 20 65 Z" fill="#1C2E57"/>
+        
+        <!-- Mortarboard cylinder/depth -->
+        <rect x="40" y="60" width="60" height="20" fill="#274580"/>
+        <ellipse cx="70" cy="60" rx="30" ry="5" fill="#1C2E57"/>
+        <ellipse cx="70" cy="80" rx="30" ry="5" fill="#1C2E57"/>
+        
+        <!-- Yellow Tassel (from left side) -->
+        <!-- Tassel cord -->
+        <line x1="45" y1="50" x2="35" y2="100" stroke="#FFDB43" stroke-width="4" stroke-linecap="round"/>
+        <!-- Tassel knob (top) -->
+        <circle cx="35" cy="100" r="6" fill="#FFDB43"/>
+        <!-- Tassel tail -->
+        <path d="M 35 106 Q 33 120 35 135" stroke="#FFDB43" stroke-width="5" stroke-linecap="round" fill="none"/>
+        
+        <!-- Laurel wreaths and Star -->
+        <!-- Left laurel wreath -->
+        <g transform="translate(50, 108)">
+          <!-- Left branch -->
+          <path d="M 0 0 Q -8 -5 -12 -3 Q -14 0 -12 3" stroke="#FFDB43" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <!-- Leaf marks on left -->
+          <line x1="-4" y1="-3" x2="-6" y2="-5" stroke="#FFDB43" stroke-width="2"/>
+          <line x1="-8" y1="-4" x2="-10" y2="-6" stroke="#FFDB43" stroke-width="2"/>
+          <line x1="-12" y1="-2" x2="-14" y2="-3" stroke="#FFDB43" stroke-width="2"/>
+          <line x1="-4" y1="3" x2="-6" y2="5" stroke="#FFDB43" stroke-width="2"/>
+          <line x1="-8" y1="4" x2="-10" y2="6" stroke="#FFDB43" stroke-width="2"/>
+          <line x1="-12" y1="2" x2="-14" y2="3" stroke="#FFDB43" stroke-width="2"/>
+        </g>
+        
+        <!-- Right laurel wreath -->
+        <g transform="translate(90, 108)">
+          <!-- Right branch -->
+          <path d="M 0 0 Q 8 -5 12 -3 Q 14 0 12 3" stroke="#FFDB43" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <!-- Leaf marks on right -->
+          <line x1="4" y1="-3" x2="6" y2="-5" stroke="#FFDB43" stroke-width="2"/>
+          <line x1="8" y1="-4" x2="10" y2="-6" stroke="#FFDB43" stroke-width="2"/>
+          <line x1="12" y1="-2" x2="14" y2="-3" stroke="#FFDB43" stroke-width="2"/>
+          <line x1="4" y1="3" x2="6" y2="5" stroke="#FFDB43" stroke-width="2"/>
+          <line x1="8" y1="4" x2="10" y2="6" stroke="#FFDB43" stroke-width="2"/>
+          <line x1="12" y1="2" x2="14" y2="3" stroke="#FFDB43" stroke-width="2"/>
+        </g>
+        
+        <!-- Central Star -->
+        <g transform="translate(70, 110)">
+          <path d="M 0,-10 L 3,-3 L 11,-2 L 5,4 L 7,12 L 0,8 L -7,12 L -5,4 L -11,-2 L -3,-3 Z" fill="#FFDB43"/>
+        </g>
+      </svg>
+      <div class="header-logo-text">
+        <h1>Estudius</h1>
+        <p>Si querés estudiar, Estudius es el lugar</p>
+      </div>
+    </div>
+
+    <nav>
+      <ul class="nav-menu">
+        <li><a href="#home">Home</a></li>
+        <li><a href="#add-teacher" data-page="add-teacher">➕ Agregar Profesor</a></li>
+        <li><a href="#list-teachers" data-page="list-teachers">📋 Listado</a></li>
+      </ul>
+    </nav>
+
+    <div class="header-right">
+      <button class="btn-header btn-signin">Iniciar sesión</button>
+      <button class="btn-header btn-signup">Crear cuenta</button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main></main>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-content">
+      <svg class="footer-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <!-- Logo pequeño -->
+        <path d="M 20 35 L 50 20 L 80 35 L 80 45 L 50 35 L 20 45 Z" fill="#274580"/>
+        <path d="M 50 35 L 80 45 L 80 55 L 50 45 Z" fill="#1C2E57"/>
+      </svg>
+      <div class="footer-text">
+        <p>&copy; 2026 Estudius. Todos los derechos reservados.</p>
+        <p>Si querés estudiar, Estudius es el lugar.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+
+  <script>
+    // Agregar listeners a botones del header que no tienen data-page
+    document.addEventListener('DOMContentLoaded', function() {
+      // Menú hamburguesa para móviles (futuro)
+      const headerLeft = document.querySelector('.header-left');
+      headerLeft.addEventListener('click', function(e) {
+        if (e.target.closest('.header-logo-text') || e.target.closest('.header-logo')) {
+          window.location.hash = '';
+        }
+      });
+
+      // Botones de navegación con data-page del menú
+      const navLinks = document.querySelectorAll('[data-page]');
+      navLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+          if (!this.hasAttribute('href')) {
+            e.preventDefault();
+            const pageName = this.dataset.page;
+            if (window.app) {
+              window.app.showPage(pageName);
+              window.location.hash = pageName;
+            }
+          }
+        });
+      });
+    });
+  </script>
+</body>
+</html>
