@@ -1,4 +1,4 @@
-# 📚 ESTUDIUS - Plataforma de Búsqueda de Tutores Privados
+# 📚 ESTUDIUS - Profesores particulares
 
 Una aplicación web moderna para conectar estudiantes con tutores privados. Permite buscar, filtrar y contactar profesores en diferentes disciplinas con una interfaz intuitiva y responsive.
 
