@@ -208,18 +208,18 @@ function createTeacherCard(teacher, highlightSubject = null) {
     ? teacher.modalities
     : (typeof teacher.modalities === 'string' ? JSON.parse(teacher.modalities) : (teacher.modality ? [teacher.modality] : []));
 
-  const modality = (_modalities || []).map(m => m === 'virtual' ? '🖥️ Virtual' : '📍 Presencial').join(' • ');
+  const modality = (_modalities || []).map(m => m === 'virtual' ? 'Virtual' : 'Presencial').join(' • ');
 
   card.innerHTML = `
     <div class="teacher-card-image">
-      ${teacher.photo ? `<img src="${teacher.photo}" alt="${teacher.firstName}">` : '👨‍🏫'}
+      ${teacher.photo ? `<img src="${teacher.photo}" alt="${teacher.firstName}">` : '<span>Profesor</span>'}
     </div>
     <div class="teacher-card-content">
       <div class="teacher-card-name">${teacher.firstName} ${teacher.lastName}</div>
       <div class="teacher-card-subject">${mainSubject}</div>
       <div class="teacher-card-meta">
         <span>${modality}</span>
-        <span>👥 ${teacher.classSize} alumnos</span>
+        <span>${teacher.classSize} alumnos</span>
       </div>
       <div class="teacher-card-description">${teacher.description.substring(0, 100)}...</div>
     </div>

@@ -79,12 +79,9 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log('');
-  console.log('╔════════════════════════════════════╗');
-  console.log('║     ESTUDIUS - Servidor iniciado    ║');
-  console.log('╠════════════════════════════════════╣');
-  console.log(`║ URL: http://localhost:${PORT}`.padEnd(36) + '║');
-  console.log('║ Presiona Ctrl+C para detener       ║');
-  console.log('╚════════════════════════════════════╝');
+  console.log('[OK] ESTUDIUS - Servidor iniciado');
+  console.log(`[OK] URL: http://localhost:${PORT}`);
+  console.log('[OK] Presiona Ctrl+C para detener');
   console.log('');
 });
 

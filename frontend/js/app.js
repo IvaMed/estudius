@@ -21,7 +21,7 @@ class EstudiusApp {
   }
 
   init() {
-    console.log('Inicializando Estudius...');
+    console.log('Inicializando Estudius');
     this.setupEventListeners();
     this.renderPage();
     this.loadTeachers();
@@ -112,16 +112,16 @@ class EstudiusApp {
 
       <div class="container">
         <!-- Filtros de Modalidad -->
-        <section class="filter-section" style="margin-bottom: var(--spacing-xl); padding: var(--spacing-lg); background: #f5f5f5; border-radius: var(--border-radius);">
+        <section class="filter-panel">
           <h3 class="section-title" style="margin-bottom: var(--spacing-md);">Filtrar por Modalidad</h3>
-          <div style="display: flex; gap: var(--spacing-lg); flex-wrap: wrap;">
-            <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+          <div class="filter-chips">
+            <label class="filter-chip">
               <input type="checkbox" name="modality-filter" value="virtual" /> 
-              🖥️ Virtual
+              Virtual
             </label>
-            <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+            <label class="filter-chip">
               <input type="checkbox" name="modality-filter" value="presencial" /> 
-              📍 Presencial
+              Presencial
             </label>
           </div>
         </section>
@@ -129,18 +129,18 @@ class EstudiusApp {
         <!-- Sección de categorías -->
         <section class="categories-section">
           <h3 class="section-title">Explora por Materia</h3>
-          <div class="categories-grid">
-            <button class="category-btn" data-filter-subject="Programación">💻 Programación</button>
-            <button class="category-btn" data-filter-subject="Matemática">📐 Matemática</button>
-            <button class="category-btn" data-filter-subject="Inglés">🌐 Inglés</button>
-            <button class="category-btn" data-filter-subject="Historia">📚 Historia</button>
-            <button class="category-btn" data-filter-subject="Física">⚛️ Física</button>
-            <button class="category-btn" id="verTodasBtn" style="font-weight: bold;">👁️ Ver Todas (41)</button>
+          <div class="categories-grid subjects-chip-grid">
+            <button class="category-btn pill-button" data-filter-subject="Programación">Programación</button>
+            <button class="category-btn pill-button" data-filter-subject="Matemática">Matemática</button>
+            <button class="category-btn pill-button" data-filter-subject="Inglés">Inglés</button>
+            <button class="category-btn pill-button" data-filter-subject="Historia">Historia</button>
+            <button class="category-btn pill-button" data-filter-subject="Física">Física</button>
+            <button class="category-btn pill-button" id="verTodasBtn">Ver Todas (${SUBJECTS_FLAT.length})</button>
           </div>
           <!-- Dropdown menu para Ver Todas -->
-          <div id="subjectsDropdown" style="display: none; margin-top: var(--spacing-lg); padding: var(--spacing-lg); background: #f9f9f9; border: 1px solid #ddd; border-radius: var(--border-radius); max-height: 400px; overflow-y: auto;">
+          <div id="subjectsDropdown" class="subjects-panel" style="display: none; max-height: 400px; overflow-y: auto;">
             <h4 style="margin-bottom: var(--spacing-md);">Selecciona una materia:</h4>
-            <div id="subjectsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--spacing-md);">
+            <div id="subjectsGrid" class="subject-group-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--spacing-md);">
               <!-- Se llena dinámicamente -->
             </div>
           </div>
@@ -148,8 +148,8 @@ class EstudiusApp {
 
         <!-- Botón para agregar profesor -->
         <section style="margin: var(--spacing-2xl) 0; text-align: center;">
-          <a href="#add-teacher" class="btn btn-primary" style="display: inline-block; padding: var(--spacing-lg) var(--spacing-2xl); text-decoration: none; color: white;">
-            ➕ Agregar un profesor
+          <a href="#add-teacher" class="btn btn-primary pill-button" style="display: inline-block; padding: var(--spacing-lg) var(--spacing-2xl); text-decoration: none; color: white;">
+            Agregar un profesor
           </a>
         </section>
 
@@ -215,14 +215,14 @@ class EstudiusApp {
         // Construir HTML por categorías (ordenadas)
         const categoriesHtml = Object.keys(SUBJECTS).map(category => {
           const subjects = Array.isArray(SUBJECTS[category]) ? [...SUBJECTS[category]].sort((a,b) => a.localeCompare(b, 'es')) : [];
-          const subjectsBtns = subjects.map(s => `<button class="category-btn" data-filter-subject="${s}">${s}</button>`).join('');
+          const subjectsBtns = subjects.map(s => `<button class="category-btn pill-button" data-filter-subject="${s}">${s}</button>`).join('');
           return `<div class="expanded-category" style="margin-bottom: var(--spacing-lg);">
-                    <h4 style="margin-bottom: var(--spacing-sm); color: var(--isotipo-dark);">${category}</h4>
-                    <div class="expanded-subjects" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--spacing-sm);">${subjectsBtns}</div>
+                    <h4 style="margin-bottom: var(--spacing-sm); color: var(--isotipo-dark); font-weight: 800;">${category}</h4>
+                    <div class="expanded-subjects subject-group-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--spacing-sm);">${subjectsBtns}</div>
                   </div>`;
         }).join('');
 
-        categoriesGrid.innerHTML = categoriesHtml + `<div style="margin-top: var(--spacing-md); text-align:center;"><button id="verMenosBtn" class="category-btn" style="font-weight: bold;">▲ Ver menos</button></div>`;
+        categoriesGrid.innerHTML = categoriesHtml + `<div style="margin-top: var(--spacing-md); text-align:center;"><button id="verMenosBtn" class="category-btn pill-button">Ver menos</button></div>`;
 
         categoriesGrid.classList.add('expanded-all-subjects');
 
@@ -241,12 +241,12 @@ class EstudiusApp {
         verMenosBtn.addEventListener('click', (e) => {
           // Restaurar grid original (las 6 botones y Ver Todas)
           categoriesGrid.innerHTML = `
-            <button class="category-btn" data-filter-subject="Programación">💻 Programación</button>
-            <button class="category-btn" data-filter-subject="Matemática">📐 Matemática</button>
-            <button class="category-btn" data-filter-subject="Inglés">🌐 Inglés</button>
-            <button class="category-btn" data-filter-subject="Historia">📚 Historia</button>
-            <button class="category-btn" data-filter-subject="Física">⚛️ Física</button>
-            <button class="category-btn" id="verTodasBtn" style="font-weight: bold;">👁️ Ver Todas</button>
+            <button class="category-btn pill-button" data-filter-subject="Programación">Programación</button>
+            <button class="category-btn pill-button" data-filter-subject="Matemática">Matemática</button>
+            <button class="category-btn pill-button" data-filter-subject="Inglés">Inglés</button>
+            <button class="category-btn pill-button" data-filter-subject="Historia">Historia</button>
+            <button class="category-btn pill-button" data-filter-subject="Física">Física</button>
+            <button class="category-btn pill-button" id="verTodasBtn">Ver Todas</button>
           `;
 
           categoriesGrid.classList.remove('expanded-all-subjects');
@@ -562,7 +562,7 @@ class EstudiusApp {
                       <input type="file" id="photo" name="photo" accept="image/*" />
                       <div class="form-error"></div>
                     </div>
-                    <div id="photoPreview" style="display: none; border: 2px solid #ddd; border-radius: var(--border-radius); overflow: hidden; background: white;">
+                    <div id="photoPreview" style="display: none; border: 2px solid #ddd; border-radius: 24px; overflow: hidden; background: white;">
                       <img id="photoPreviewImg" src="" alt="Preview" style="max-width: 150px; max-height: 150px; object-fit: cover;" />
                     </div>
                   </div>
@@ -615,14 +615,14 @@ class EstudiusApp {
 
                 <div class="form-group required">
                   <label>Modalidad</label>
-                  <div style="display: flex; gap: var(--spacing-md); align-items: center;">
-                    <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+                  <div class="filter-chips">
+                    <label class="filter-chip">
                       <input type="checkbox" name="modalities" value="virtual" />
-                      🖥️ Virtual
+                      Virtual
                     </label>
-                    <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+                    <label class="filter-chip">
                       <input type="checkbox" name="modalities" value="presencial" />
-                      📍 Presencial
+                      Presencial
                     </label>
                   </div>
                   <div class="form-error"></div>
@@ -644,7 +644,7 @@ class EstudiusApp {
 
             <!-- Advertencias de validación -->
             <div id="formWarnings" style="display: none; background: #fff3cd; border: 1px solid #ffc107; border-radius: var(--border-radius); padding: var(--spacing-lg); margin: var(--spacing-xl) 0; color: #856404;">
-              <h4 style="margin-top: 0; color: #856404;">⚠️ Errores en el formulario:</h4>
+              <h4 style="margin-top: 0; color: #856404;">Errores en el formulario:</h4>
               <ul id="warningsList" style="margin: var(--spacing-sm) 0; padding-left: var(--spacing-lg);"></ul>
             </div>
 
@@ -1093,8 +1093,8 @@ class EstudiusApp {
 
         <div class="container">
           <div class="detail-content">
-            <div class="detail-images">
-              ${teacher.photo ? `<div class="detail-image"><img src="${teacher.photo}" alt="${teacher.firstName}"></div>` : '<div class="detail-image">📚</div>'}
+              <div class="detail-images">
+                ${teacher.photo ? `<div class="detail-image"><img src="${teacher.photo}" alt="${teacher.firstName}"></div>` : '<div class="detail-image">Profesor</div>'}
             </div>
 
             <div class="detail-info">
@@ -1104,8 +1104,8 @@ class EstudiusApp {
                   <span class="detail-info-label">Edad:</span>
                   <span class="detail-info-value">${teacher.age} años</span>
                 </div>
-                <div style="background: #e7f3ff; border-left: 4px solid #0066cc; padding: var(--spacing-md); border-radius: 4px; margin: var(--spacing-md) 0; font-size: var(--font-size-sm); color: #004499;">
-                  <strong>ℹ️ Información de contacto (visible solo para administradores):</strong>
+                <div class="detail-note">
+                  <strong>Información de contacto (visible solo para administradores):</strong>
                   <div style="margin-top: var(--spacing-sm);">
                     <div class="detail-info-item">
                       <span class="detail-info-label">Email:</span>
@@ -1125,7 +1125,7 @@ class EstudiusApp {
                 <h3>Clases</h3>
                 <div class="detail-info-item">
                   <span class="detail-info-label">Modalidad:</span>
-                  <span class="detail-info-value">${(Array.isArray(teacher.modalities) ? teacher.modalities : (teacher.modalities ? JSON.parse(teacher.modalities) : (teacher.modality ? [teacher.modality] : []))).map(m => m === 'virtual' ? '📱 Virtual' : '📍 Presencial').join(' • ')}</span>
+                  <span class="detail-info-value">${(Array.isArray(teacher.modalities) ? teacher.modalities : (teacher.modalities ? JSON.parse(teacher.modalities) : (teacher.modality ? [teacher.modality] : []))).map(m => m === 'virtual' ? 'Virtual' : 'Presencial').join(' • ')}</span>
                 </div>
                 <div class="detail-info-item">
                   <span class="detail-info-label">Cantidad Alumnos:</span>
@@ -1159,10 +1159,10 @@ class EstudiusApp {
 
               <div class="detail-admin-actions" style="display: flex; gap: var(--spacing-lg); margin-top: var(--spacing-2xl); padding-top: var(--spacing-xl); border-top: 2px solid #e7e7e7;">
                 <button id="editTeacherBtn" class="btn btn-primary" style="flex: 1; padding: var(--spacing-md); background: #274580; color: white; border: none; border-radius: var(--border-radius); cursor: pointer; font-weight: 600; font-size: var(--font-size-sm);">
-                  ✏️ Editar Profesor
+                  Editar Profesor
                 </button>
                 <button id="deleteTeacherBtn" class="btn btn-danger" style="flex: 1; padding: var(--spacing-md); background: #d9534f; color: white; border: none; border-radius: var(--border-radius); cursor: pointer; font-weight: 600; font-size: var(--font-size-sm);">
-                  🗑️ Eliminar Profesor
+                  Eliminar Profesor
                 </button>
               </div>
             </div>
@@ -1270,13 +1270,13 @@ class EstudiusApp {
                 <div class="form-group">
                   <label>Modalidad</label>
                   <div style="display: flex; gap: var(--spacing-md); align-items: center;">
-                    <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+                    <label class="filter-chip">
                       <input type="checkbox" name="modalities" value="virtual" ${Array.isArray(teacher.modalities) && teacher.modalities.includes('virtual') ? 'checked' : ''} />
-                      🖥️ Virtual
+                      Virtual
                     </label>
-                    <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+                    <label class="filter-chip">
                       <input type="checkbox" name="modalities" value="presencial" ${Array.isArray(teacher.modalities) && teacher.modalities.includes('presencial') ? 'checked' : ''} />
-                      📍 Presencial
+                      Presencial
                     </label>
                   </div>
                   <div class="form-error"></div>
@@ -1322,7 +1322,7 @@ class EstudiusApp {
     const subjectsContainer = document.querySelector('.form-group-checkbox');
     if (subjectsContainer) {
       subjectsContainer.innerHTML = SUBJECTS_FLAT.map(subject => `
-        <label style="display: inline-flex; align-items: center; margin-right: var(--spacing-lg); margin-bottom: var(--spacing-sm);">
+        <label class="checkbox-item" style="display: inline-flex; align-items: center; margin-right: var(--spacing-lg); margin-bottom: var(--spacing-sm);">
           <input type="checkbox" name="subjects" value="${subject}" ${teacher.subjects.includes(subject) ? 'checked' : ''} />
           <span style="margin-left: var(--spacing-sm); cursor: pointer;">${subject}</span>
         </label>
