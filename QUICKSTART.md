@@ -28,6 +28,21 @@ Debería ver:
 http://localhost:3000
 ```
 
+## Opcional: Poblar con datos de ejemplo
+
+Si querés tener perfiles y fotos de ejemplo para probar la app, desde la carpeta `backend/` ejecutá:
+
+```bash
+# Generar 40 profesores de ejemplo
+node seed-teachers.js
+
+# Asignar fotos desde frontend/assets/uploads
+node assign-photos.js
+
+# (Opcional) Eliminar materias específicas de los perfiles
+node remove-subjects.js
+```
+
 ---
 
 ## 🎯 Primeros pasos

@@ -164,56 +164,51 @@ class TeacherAPI {
 
 // Constantes de materias
 const SUBJECTS = {
-  'Materias Escolares': [
-    'Matemática',
-    'Lengua',
-    'Historia',
-    'Geografía',
+  'Materias escolares clásicas': [
     'Biología',
-    'Física',
-    'Química',
     'Educación Cívica',
+    'Economía',
     'Filosofía',
+    'Física',
+    'Geografía',
+    'Historia',
+    'Lengua',
+    'Matemática',
     'Psicología',
-    'Economía'
+    'Química'
   ],
-  'Nivel Universitario': [
-    'Análisis Matemático',
+  'Materias de nivel universitario': [
+    'Administración',
     'Algebra Lineal',
-    'Estadística y probabilidad',
-    'Mecánica',
-    'Electrónica',
-    'Química Orgánica',
-    'Química Inorgánica',
-    'Marketing',
+    'Análisis Matemático',
     'Derecho',
-    'Administración'
+    'Electrónica',
+    'Estadística y probabilidad',
+    'Marketing',
+    'Mecánica',
+    'Química Inorgánica',
+    'Química Orgánica'
   ],
-  'Informática': [
-    'Programación',
-    'Desarrollo Web',
-    'Bases de Datos',
+  'Materias Informáticas': [
     'Algoritmos',
-    'JavaScript',
-    'Python',
-    'Ciberseguridad'
+    'Bases de Datos',
+    'Ciberseguridad',
+    'Desarrollo Web',
+    'Programación'
   ],
   'Idiomas': [
-    'Inglés',
-    'Portugués',
-    'Francés',
-    'Italiano',
     'Alemán',
     'Chino',
-    'Japonés'
+    'Francés',
+    'Inglés',
+    'Italiano',
+    'Japonés',
+    'Portugués'
   ],
-  'Artes': [
+  'Materias Artísticas': [
     'Dibujo',
-    'Pintura',
     'Música',
-    'Danza',
-    'Teatro',
-    'Fotografía'
+    'Pintura'
   ]
 };
 

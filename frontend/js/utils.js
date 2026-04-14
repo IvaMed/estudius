@@ -21,7 +21,10 @@ async function httpRequest(method, url, data = null) {
   const result = await response.json();
 
   if (!response.ok) {
-    throw new Error(result.message || 'Error en la solicitud');
+    const error = new Error(result.message || 'Error en la solicitud');
+    // Adjuntar detalles de validación si vienen del servidor
+    error.details = result.errors || result.details || null;
+    throw error;
   }
 
   return result;

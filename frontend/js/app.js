@@ -100,11 +100,11 @@ class EstudiusApp {
           <h2>Encuentra tu profesor ideal</h2>
           <div class="search-box">
             <input 
-              type="text" 
-              id="searchInput" 
-              placeholder="Buscar por nombre o materia..."
-              class="search-input"
-            />
+                type="text" 
+                id="searchInput" 
+                placeholder="Buscar por nombre..."
+                class="search-input"
+              />
             <button class="btn-search-home">Buscar</button>
           </div>
         </div>
@@ -206,48 +206,53 @@ class EstudiusApp {
     const subjectsDropdown = document.getElementById('subjectsDropdown');
     const subjectsGrid = document.getElementById('subjectsGrid');
 
+    // Nuevo comportamiento: expandir/colapsar el grid de materias en el mismo lugar
     verTodasBtn.addEventListener('click', () => {
-      if (subjectsDropdown.style.display === 'none') {
-        // Generar lista de TODAS las materias disponibles (no solo las que tienen profesores)
-        const allSubjects = [];
-        for (const category in SUBJECTS) {
-          allSubjects.push(...SUBJECTS[category]);
-        }
-        const sortedSubjects = [...new Set(allSubjects)].sort();
+      const categoriesGrid = document.querySelector('.categories-grid');
+      const isExpanded = categoriesGrid.classList.contains('expanded-all-subjects');
 
-        subjectsGrid.innerHTML = sortedSubjects.map(subject => 
-          `<button class="subject-option" data-subject="${subject}" style="padding: var(--spacing-md); border: 1px solid #ddd; background: white; border-radius: var(--border-radius); cursor: pointer; transition: all 0.2s;">
-            ${subject}
-          </button>`
-        ).join('');
+      if (!isExpanded) {
+        // Construir HTML por categorías (ordenadas)
+        const categoriesHtml = Object.keys(SUBJECTS).map(category => {
+          const subjects = Array.isArray(SUBJECTS[category]) ? [...SUBJECTS[category]].sort((a,b) => a.localeCompare(b, 'es')) : [];
+          const subjectsBtns = subjects.map(s => `<button class="category-btn" data-filter-subject="${s}">${s}</button>`).join('');
+          return `<div class="expanded-category" style="margin-bottom: var(--spacing-lg);">
+                    <h4 style="margin-bottom: var(--spacing-sm); color: var(--isotipo-dark);">${category}</h4>
+                    <div class="expanded-subjects" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--spacing-sm);">${subjectsBtns}</div>
+                  </div>`;
+        }).join('');
 
-        // Event listeners para opciones de materias
-        subjectsGrid.querySelectorAll('.subject-option').forEach(btn => {
+        categoriesGrid.innerHTML = categoriesHtml + `<div style="margin-top: var(--spacing-md); text-align:center;"><button id="verMenosBtn" class="category-btn" style="font-weight: bold;">▲ Ver menos</button></div>`;
+
+        categoriesGrid.classList.add('expanded-all-subjects');
+
+        // Re-agregar listeners a los botones generados
+        categoriesGrid.querySelectorAll('.category-btn').forEach(btn => {
+          if (btn.id === 'verMenosBtn') return;
           btn.addEventListener('click', (e) => {
-            const subject = e.target.dataset.subject;
-            const isActive = e.target.classList.contains('active');
-            if (isActive) {
-              this.updateCategorySelectionUI(null);
-              this.filterBySubject('all');
-            } else {
-              this.updateCategorySelectionUI(subject);
-              this.filterBySubject(subject);
-            }
-            subjectsDropdown.style.display = 'none';
-          });
-          btn.addEventListener('mouseover', (e) => {
-            e.target.style.backgroundColor = '#587D71';
-            e.target.style.color = 'white';
-          });
-          btn.addEventListener('mouseout', (e) => {
-            e.target.style.backgroundColor = 'white';
-            e.target.style.color = 'black';
+            const subject = btn.dataset.filterSubject;
+            this.updateCategorySelectionUI(subject);
+            this.filterBySubject(subject);
           });
         });
 
-        subjectsDropdown.style.display = 'block';
-      } else {
-        subjectsDropdown.style.display = 'none';
+        // Listener para ver menos
+        const verMenosBtn = document.getElementById('verMenosBtn');
+        verMenosBtn.addEventListener('click', (e) => {
+          // Restaurar grid original (las 6 botones y Ver Todas)
+          categoriesGrid.innerHTML = `
+            <button class="category-btn" data-filter-subject="Programación">💻 Programación</button>
+            <button class="category-btn" data-filter-subject="Matemática">📐 Matemática</button>
+            <button class="category-btn" data-filter-subject="Inglés">🌐 Inglés</button>
+            <button class="category-btn" data-filter-subject="Historia">📚 Historia</button>
+            <button class="category-btn" data-filter-subject="Física">⚛️ Física</button>
+            <button class="category-btn" id="verTodasBtn" style="font-weight: bold;">👁️ Ver Todas</button>
+          `;
+
+          categoriesGrid.classList.remove('expanded-all-subjects');
+          // Rebind original event listeners (simple approach: re-render page controls)
+          this.renderPage();
+        });
       }
     });
 
@@ -501,16 +506,7 @@ class EstudiusApp {
     
     const filtered = this.allTeachers.filter(t => {
       const name = `${t.firstName} ${t.lastName}`.toLowerCase();
-      const description = t.description.toLowerCase();
-      const subjects = Array.isArray(t.subjects) ? t.subjects : JSON.parse(t.subjects || '[]');
-            const subjectsStr = subjects.map(s => s.toLowerCase()).join(' ');
-            const modalitiesArr = Array.isArray(t.modalities) ? t.modalities : (typeof t.modalities === 'string' ? JSON.parse(t.modalities || '[]') : (t.modality ? [t.modality] : []));
-            const modalitiesStr = (modalitiesArr || []).map(m => m.toLowerCase()).join(' ');
-
-            return name.includes(queryLower) || 
-              description.includes(queryLower) || 
-              subjectsStr.includes(queryLower) ||
-              modalitiesStr.includes(queryLower);
+      return name.includes(queryLower);
     });
     this.displayTeachers(filtered);
   }
@@ -956,6 +952,25 @@ class EstudiusApp {
       }
     } catch (error) {
       console.error('Error:', error);
+      // Si el servidor devolvió detalles de validación, mostrarlos en el formulario
+      if (error.details && typeof error.details === 'object') {
+        const warnings = Object.values(error.details);
+        // Marcar campos con errores si existen
+        Object.entries(error.details).forEach(([field, msg]) => {
+          try { setFieldError(field, msg); } catch (e) { /* ignore */ }
+        });
+
+        const warningsDiv = document.getElementById('formWarnings');
+        const warningsList = document.getElementById('warningsList');
+        if (warningsDiv && warningsList) {
+          warningsList.innerHTML = warnings.map(w => `<li>${w}</li>`).join('');
+          warningsDiv.style.display = 'block';
+        }
+
+        showAlert('Por favor corrige los errores del formulario', 'error');
+        return;
+      }
+
       showAlert(error.message || 'Error al crear profesor', 'error');
     }
   }

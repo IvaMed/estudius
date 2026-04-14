@@ -6,6 +6,13 @@ Una aplicación web moderna para conectar estudiantes con tutores privados. Perm
 
 ---
 
+## 🔄 Cambios recientes
+
+- `backend/seed-teachers.js` ahora genera **40** profesores por defecto (ejecutar desde `backend/` con `node seed-teachers.js`).
+- Nuevos scripts en `backend/`: `assign-photos.js` (asigna fotos desde `frontend/assets/uploads`) y `remove-subjects.js` (elimina materias específicas de los perfiles).
+- Las materias `Python` y `JavaScript` fueron removidas de la lista por defecto. Para restaurarlas o editarlas, actualizar `backend/models/teacherModel.js` y `frontend/js/api.js`.
+- El logo ahora se configura vía `frontend/js/config.js` (`SITE_LOGO_PATH`) y el header/logo se agrandó (header 140px, logo ~120×120). Las fotos de profesor usan `object-fit: contain` para evitar recortes de rostros.
+
 ## 📋 Tabla de Contenidos
 
 1. [Características](#características)
@@ -120,6 +127,21 @@ estudius/
 
 ## 🎯 Ejecución
 
+### Paso 0 (Opcional): Poblar la base de datos con datos de ejemplo
+
+Si querés poblar la base de datos local con datos de ejemplo y asignar fotos automáticamente, desde la carpeta `backend/` ejecutá:
+
+```bash
+# Generar 40 profesores de ejemplo
+node seed-teachers.js
+
+# Asignar fotos desde frontend/assets/uploads a los perfiles
+node assign-photos.js
+
+# (Opcional) Quitar materias específicas de los perfiles (por ejemplo Python/JavaScript)
+node remove-subjects.js
+```
+
 ### Paso 1: Iniciar el Servidor Backend
 
 ```bash
@@ -185,6 +207,10 @@ backend/
 ├── middleware/
 │   ├── validation.js        # Validaciones
 │   └── errorHandler.js      # Manejo de errores
+├── scripts/
+│   ├── seed-teachers.js     # Población de DB con 40 profesores (node seed-teachers.js)
+│   ├── assign-photos.js     # Asigna fotos desde frontend/assets/uploads
+│   └── remove-subjects.js   # Limpia materias específicas en perfiles
 └── database/
     └── db.js               # Conexión SQLite
 ```
@@ -408,7 +434,7 @@ Inglés, Portugués, Francés, Italiano, Alemán
 ### Artes (3)
 Dibujo, Pintura, Música
 
-**Total: 35 materias disponibles**
+**Total: 33 materias disponibles**
 
 ---
 

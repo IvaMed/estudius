@@ -109,21 +109,24 @@ app.use(cors({ origin: ['http://localhost:3000'] }));
 ## Frontend
 
 ### ¿Cómo cambio el logo?
-**R:** 1-Editar SVG en `index.html` header section
-**2.** O reemplazar con `<img src="logo.png">`
+**R:** El logo se configura desde `frontend/js/config.js` mediante la variable `SITE_LOGO_PATH` (por defecto `assets/uploads/logo.svg`). Opciones:
+
+1. Reemplazar el archivo en `frontend/assets/uploads/logo.svg` (o añadir `logo.png`) y, si cambias el nombre, actualizar `SITE_LOGO_PATH` en `frontend/js/config.js`.
+2. Editar `index.html` y usar tu propio `<img src="ruta/a/logo.png">` (menos recomendable si querés cambiarlo dinámicamente).
 
 ### ¿Cómo cambio los textos del sitio?
 **R:** Buscar y reemplazar en `app.js` - método `renderPage()`
 
 ### ¿Cómo agrego más materias?
-**R:** Editar `teacherModel.js`:
+**R:** 1) Actualizá la lista en `backend/models/teacherModel.js` (lista de materias del servidor).  
+2) Reflejála en `frontend/js/api.js` para que aparezca en los selectores del frontend.  
+
+Si necesitás limpiar perfiles que contengan materias específicas (por ejemplo `Python` o `JavaScript` que fueron removidas del set por defecto), ejecutá `node backend/remove-subjects.js`.
+
+Ejemplo (backend):
 ```javascript
-const SUBJECTS = {
-  schoolSubjects: [
-    // ... agregar aquí
-    'Nueva Materia'
-  ]
-}
+// backend/models/teacherModel.js
+SUBJECTS.computerScience.push('Nueva Materia');
 ```
 
 ### ¿Por qué algunos campos se validan dos veces?
@@ -135,11 +138,26 @@ const SUBJECTS = {
 - O editar directamente las clases
 
 ### ¿Cómo cambio el tamaño del header?
-**R:** En `styles.css` buscar:
+**R:** Editá `frontend/css/styles.css` y ajustá la altura del `header`. En esta versión el header usa `height: 140px`.
+
+Ejemplo:
 ```css
 header {
-  height: 80px;  /* Aquí */
+  height: 140px;
 }
+```
+
+### ¿Cómo poblo la base de datos con datos de ejemplo?
+**R:** Desde la carpeta `backend/` ejecutar:
+```bash
+# Generar 40 profesores de ejemplo
+node seed-teachers.js
+
+# Asignar fotos desde frontend/assets/uploads a los perfiles
+node assign-photos.js
+
+# (Opcional) Quitar materias específicas de los perfiles
+node remove-subjects.js
 ```
 
 ---
