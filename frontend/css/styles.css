@@ -83,9 +83,9 @@ body {
 
 main {
   flex: 1;
-  padding-top: 140px; /* Ajustado al nuevo header */
-  padding-bottom: 200px; /* Espacio para footer fijo */
-  min-height: calc(100vh - 140px);
+  padding-top: 100px; /* Ajustado al header */
+  padding-bottom: 170px; /* Espacio para footer fijo */
+  min-height: calc(100vh - 100px);
 }
 
 a {
@@ -135,7 +135,7 @@ header {
   left: 0;
   right: 0;
   width: 100%;
-  height: 140px; /* aumentado para logo más grande */
+  height: 80px;
   background-color: var(--color-white);
   box-shadow: var(--shadow-md);
   display: flex;
@@ -158,8 +158,8 @@ header {
 
 .header-logo,
 .header-logo-image {
-  width: 120px; /* logo más grande */
-  height: 120px;
+  width: 70px;
+  height: 70px;
   object-fit: contain;
 }
 
@@ -248,7 +248,7 @@ footer {
   width: 100%;
   background-color: var(--color-white);
   border-top: 1px solid var(--color-gray-medium);
-  padding: var(--spacing-xl) var(--spacing-lg);
+  padding: var(--spacing-lg) var(--spacing-lg);
   z-index: 100;
   box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
 }
@@ -259,8 +259,8 @@ footer {
   gap: var(--spacing-lg);
 }
 .footer-logo, .footer-logo-image {
-  width: 80px; /* footer logo ligeramente más grande */
-  height: 80px;
+  width: 60px;
+  height: 60px;
   object-fit: contain;
 }
 
@@ -306,7 +306,8 @@ footer {
 }
 
 .filter-panel,
-.subjects-panel {
+.subjects-panel,
+.categories-section {
   margin-bottom: var(--spacing-xl);
   padding: var(--spacing-lg);
   background: rgba(255, 255, 255, 0.72);
@@ -379,8 +380,10 @@ footer {
 /* Buscador */
 .search-section {
   background: linear-gradient(135deg, var(--isotipo-dark) 0%, var(--isotipo-darker) 100%);
-  padding: var(--spacing-2xl) var(--spacing-lg);
-  margin-bottom: var(--spacing-2xl);
+  padding: var(--spacing-xl) var(--spacing-lg);
+  margin: 0 auto var(--spacing-xl);
+  width: calc(100% - (2 * var(--spacing-lg)));
+  max-width: 1152px;
   border-radius: var(--border-radius-lg);
   color: var(--color-white);
 }
@@ -1001,7 +1004,8 @@ footer {
     padding: var(--spacing-sm);
   }
 
-  .header-logo {
+  .header-logo,
+  .header-logo-image {
     width: 40px;
     height: 40px;
   }

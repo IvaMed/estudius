@@ -115,14 +115,8 @@ class EstudiusApp {
         <section class="filter-panel">
           <h3 class="section-title" style="margin-bottom: var(--spacing-md);">Filtrar por Modalidad</h3>
           <div class="filter-chips">
-            <label class="filter-chip">
-              <input type="checkbox" name="modality-filter" value="virtual" /> 
-              Virtual
-            </label>
-            <label class="filter-chip">
-              <input type="checkbox" name="modality-filter" value="presencial" /> 
-              Presencial
-            </label>
+            <button type="button" class="filter-chip modality-filter-btn" data-filter-modality="virtual">Virtual</button>
+            <button type="button" class="filter-chip modality-filter-btn" data-filter-modality="presencial">Presencial</button>
           </div>
         </section>
 
@@ -256,17 +250,18 @@ class EstudiusApp {
       }
     });
 
-    // Event listeners para checkboxes de modalidad
-    document.querySelectorAll('input[name="modality-filter"]').forEach(checkbox => {
-      checkbox.addEventListener('change', () => {
+    // Event listeners para botones de modalidad
+    document.querySelectorAll('.modality-filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        btn.classList.toggle('active');
         this.currentPage_pagination = 1;
-        const selectedModalities = Array.from(document.querySelectorAll('input[name="modality-filter"]:checked')).map(cb => cb.value);
+        const selectedModalities = Array.from(document.querySelectorAll('.modality-filter-btn.active')).map(b => b.dataset.filterModality);
+        this.filters.modalities = selectedModalities;
         
         let filtered = [...this.allTeachers];
         
         // Primero filtrar por materia si hay una seleccionada
-        const currentSubjectBtn = document.querySelector('.category-btn[data-filter-subject]');
-        if (currentSubjectBtn && this.filters.subject) {
+        if (this.filters.subject) {
           filtered = filtered.filter(t => {
             let subjects = t.subjects;
             if (typeof subjects === 'string') {
