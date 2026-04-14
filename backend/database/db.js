@@ -15,7 +15,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('ERROR al conectar con la base de datos:', err.message);
   } else {
-    console.log('✓ Conectado a SQLite:', dbPath);
+    console.log('[OK] Conectado a SQLite:', dbPath);
     initializeDatabase();
   }
 });
@@ -34,7 +34,7 @@ async function initializeDatabase() {
       if (err) {
         console.error('ERROR al crear tablas:', err.message);
       } else {
-        console.log('✓ Base de datos inicializada correctamente');
+        console.log('[OK] Base de datos inicializada correctamente');
       }
     });
   } catch (error) {

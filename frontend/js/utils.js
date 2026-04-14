@@ -217,7 +217,7 @@ function createTeacherCard(teacher, highlightSubject = null) {
     ? teacher.modalities
     : (typeof teacher.modalities === 'string' ? JSON.parse(teacher.modalities) : (teacher.modality ? [teacher.modality] : []));
 
-  const modality = (_modalities || []).map(m => m === 'virtual' ? '🖥️ Virtual' : '📍 Presencial').join(' • ');
+  const modality = (_modalities || []).map(m => m === 'virtual' ? 'Virtual' : 'Presencial').join(' • ');
 
   // Class size label: if only one student -> particulares, otherwise grupales
   const classLabel = parseInt(teacher.classSize) === 1 ? 'Clases particulares' : 'Clases grupales';

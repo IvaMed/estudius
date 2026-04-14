@@ -14,6 +14,11 @@ cd backend
 npm install
 ```
 
+Si PowerShell bloquea npm, ejecutar:
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
 ### 2️⃣ Ejecutar
 ```bash
 npm start
