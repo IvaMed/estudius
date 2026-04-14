@@ -3,6 +3,44 @@
 // =====================================================
 
 const { dbAll, dbGet, dbRun } = require('../database/db');
+const fs = require('fs');
+const path = require('path');
+
+// Directorio de uploads del frontend (para fotos de ejemplo)
+const uploadsDir = path.join(__dirname, '../../frontend/assets/uploads');
+
+function findPhotoForId(id) {
+  const exts = ['jpeg', 'jpg', 'png', 'webp'];
+  const genders = ['hombres', 'mujeres'];
+
+  for (const g of genders) {
+    for (const ext of exts) {
+      const p = path.join(uploadsDir, g, `${id}.${ext}`);
+      if (fs.existsSync(p)) {
+        return `/assets/uploads/${g}/${id}.${ext}`;
+      }
+    }
+  }
+
+  return null;
+}
+
+function normalizeTeacherRow(row) {
+  const subjects = row.subjects ? JSON.parse(row.subjects) : [];
+  const modalities = row.modalities ? JSON.parse(row.modalities) : (row.modality ? [row.modality] : []);
+  let photo = row.photo || null;
+  if (!photo) {
+    const fallback = findPhotoForId(row.id);
+    if (fallback) photo = fallback;
+  }
+
+  return {
+    ...row,
+    subjects,
+    modalities,
+    photo
+  };
+}
 
 class TeacherRepository {
   /**
@@ -59,13 +97,7 @@ class TeacherRepository {
   static async getAll() {
     const sql = 'SELECT * FROM teachers ORDER BY createdAt DESC';
     const teachers = await dbAll(sql);
-    
-    // Parsear JSON fields y normalizar modalidades
-    return teachers.map(teacher => ({
-      ...teacher,
-      subjects: JSON.parse(teacher.subjects),
-      modalities: teacher.modalities ? JSON.parse(teacher.modalities) : (teacher.modality ? [teacher.modality] : [])
-    }));
+    return teachers.map(t => normalizeTeacherRow(t));
   }
 
   /**
@@ -76,13 +108,12 @@ class TeacherRepository {
     const teacher = await dbGet(sql, [id]);
     
     if (teacher) {
-      teacher.subjects = JSON.parse(teacher.subjects);
-      teacher.modalities = teacher.modalities ? JSON.parse(teacher.modalities) : (teacher.modality ? [teacher.modality] : []);
       // Incrementar vistas para recomendación
       await this.incrementViews(id);
+      return normalizeTeacherRow(teacher);
     }
-    
-    return teacher;
+
+    return null;
   }
 
   /**
@@ -113,12 +144,7 @@ class TeacherRepository {
     `;
     
     const teachers = await dbAll(sql, [limit]);
-    
-    return teachers.map(teacher => ({
-      ...teacher,
-      subjects: JSON.parse(teacher.subjects),
-      modalities: teacher.modalities ? JSON.parse(teacher.modalities) : (teacher.modality ? [teacher.modality] : [])
-    }));
+    return teachers.map(t => normalizeTeacherRow(t));
   }
 
   /**
@@ -132,12 +158,7 @@ class TeacherRepository {
     `;
     
     const teachers = await dbAll(sql, [limit]);
-    
-    return teachers.map(teacher => ({
-      ...teacher,
-      subjects: JSON.parse(teacher.subjects),
-      modalities: teacher.modalities ? JSON.parse(teacher.modalities) : (teacher.modality ? [teacher.modality] : [])
-    }));
+    return teachers.map(t => normalizeTeacherRow(t));
   }
 
   /**
@@ -146,17 +167,12 @@ class TeacherRepository {
   static async getBySubject(subject) {
     const sql = 'SELECT * FROM teachers';
     const all = await dbAll(sql);
-    
     return all
       .filter(teacher => {
         const subjects = JSON.parse(teacher.subjects);
         return subjects.includes(subject);
       })
-      .map(teacher => ({
-        ...teacher,
-        subjects: JSON.parse(teacher.subjects),
-        modalities: teacher.modalities ? JSON.parse(teacher.modalities) : (teacher.modality ? [teacher.modality] : [])
-      }));
+      .map(t => normalizeTeacherRow(t));
   }
 
   /**
@@ -172,11 +188,7 @@ class TeacherRepository {
         const modalities = teacher.modalities ? JSON.parse(teacher.modalities) : (teacher.modality ? [teacher.modality] : []);
         return Array.isArray(modalities) && modalities.includes(modality);
       })
-      .map(teacher => ({
-        ...teacher,
-        subjects: JSON.parse(teacher.subjects),
-        modalities: teacher.modalities ? JSON.parse(teacher.modalities) : (teacher.modality ? [teacher.modality] : [])
-      }));
+      .map(t => normalizeTeacherRow(t));
   }
 
   /**

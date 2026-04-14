@@ -33,8 +33,6 @@ const SUBJECTS = {
     'Desarrollo Web',
     'Bases de Datos',
     'Algoritmos',
-    'JavaScript',
-    'Python',
     'Ciberseguridad'
   ],
   languages: [

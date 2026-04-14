@@ -69,12 +69,15 @@ const ALL_SUBJECTS = [
   ...SUBJECTS.arts
 ];
 
-// Nombres aleatorios - Mix español
-const firstNames = [
-  'Juan', 'María', 'Carlos', 'Ana', 'Diego', 'Laura', 'Miguel', 'Isabel',
-  'Jorge', 'Patricia', 'Luis', 'Sofía', 'Antonio', 'Elena', 'Marco', 'Gabriela',
-  'Ricardo', 'Rosa', 'Javier', 'Lucia', 'Samuel', 'Martina', 'Alejandro', 'Valeria',
-  'Andrés', 'Carolina', 'Guillermo', 'Cristina', 'Felipe', 'Adriana'
+// Nombres aleatorios separados por género para asegurar inclusión de mujeres
+const maleNames = [
+  'Juan', 'Carlos', 'Diego', 'Miguel', 'Jorge', 'Luis', 'Antonio', 'Marco',
+  'Ricardo', 'Javier', 'Samuel', 'Alejandro', 'Andrés', 'Guillermo', 'Felipe'
+];
+
+const femaleNames = [
+  'María', 'Ana', 'Laura', 'Isabel', 'Patricia', 'Sofía', 'Elena', 'Gabriela',
+  'Rosa', 'Lucia', 'Martina', 'Valeria', 'Carolina', 'Cristina', 'Adriana'
 ];
 
 const lastNames = [
@@ -166,7 +169,9 @@ function generateSubjects() {
 
 // Función para generar profesor aleatorio
 function generateTeacher(index) {
-  const firstName = randomElement(firstNames);
+  // Elegir género aleatorio y nombre correspondiente (garantizar mezcla)
+  const isFemale = Math.random() < 0.5;
+  const firstName = isFemale ? randomElement(femaleNames) : randomElement(maleNames);
   const lastName = randomElement(lastNames);
   const modality = randomInt(0, 1) === 0 ? 'virtual' : 'presencial';
   
@@ -233,15 +238,15 @@ async function seedDatabase() {
   console.log('Iniciando población de base de datos...\n');
   
   try {
-    // Generar 10 profesores aleatorios
-    const teacherCount = 10;
+    // Generar 40 profesores aleatorios (más variedad)
+    const teacherCount = 40;
     console.log(`Generando ${teacherCount} profesores aleatorios...\n`);
     
     for (let i = 1; i <= teacherCount; i++) {
       const teacher = generateTeacher(i);
       const id = await insertTeacher(teacher);
       
-      console.log(`✓ Profesor ${i}/10 insertado:`);
+      console.log(`✓ Profesor ${i}/${teacherCount} insertado:`);
       console.log(`  - ${teacher.firstName} ${teacher.lastName}`);
       console.log(`  - Email: ${teacher.email}`);
       console.log(`  - Modalidad: ${teacher.modality}`);
