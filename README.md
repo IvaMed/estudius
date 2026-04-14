@@ -61,7 +61,7 @@ Una aplicación web moderna para conectar estudiantes con tutores privados. Perm
 | **Frontend** | HTML5, CSS3, JavaScript Vanilla | ES6+ |
 | **Backend** | Node.js + Express.js | 4.18.2 |
 | **Base de Datos** | SQLite3 | 3 |
-| **Runtime** | Node.js | >=14.0.0 |
+| **Runtime** | Node.js | >=24.14.1 |
 
 ### Ventajas del Stack Elegido
 
@@ -87,7 +87,8 @@ Una aplicación web moderna para conectar estudiantes con tutores privados. Perm
 
 ## 📦 Requisitos
 
-- Node.js >= 14.0.0 (https://nodejs.org/en/download/current)
+- Node.js v24.14.1 recomendado en Windows
+- Si PowerShell bloquea npm, ejecutar: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
 - npm >= 6.0.0
 - SQLite3 (incluido en el paquete npm)
 - Navegador moderno (Chrome, Firefox, Safari, Edge)
@@ -138,7 +139,7 @@ node seed-teachers.js
 # Asignar fotos desde frontend/assets/uploads a los perfiles
 node assign-photos.js
 
-# (Opcional) Quitar materias específicas de los perfiles (por ejemplo Python/JavaScript)
+# (Opcional) Quitar materias específicas de los perfiles
 node remove-subjects.js
 ```
 
@@ -151,12 +152,9 @@ npm start
 
 Salida esperada:
 ```
-╔════════════════════════════════╗
-║  ESTUDIUS - Servidor iniciado   ║
-╠════════════════════════════════╣
-║ URL: http://localhost:3000      ║
-║ Presiona Ctrl+C para detener   ║
-╚════════════════════════════════╝
+[OK] ESTUDIUS - Servidor iniciado
+[OK] URL: http://localhost:3000
+[OK] Presiona Ctrl+C para detener
 ```
 
 El servidor:

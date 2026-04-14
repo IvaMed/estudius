@@ -8,6 +8,11 @@ cd backend
 npm install
 ```
 
+Si PowerShell bloquea npm, ejecutar primero:
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
 ### 2️⃣ Iniciar servidor
 ```bash
 npm start
@@ -15,12 +20,9 @@ npm start
 
 Debería ver:
 ```
-╔════════════════════════════════╗
-║  ESTUDIUS - Servidor iniciado   ║
-╠════════════════════════════════╣
-║ URL: http://localhost:3000      ║
-║ Presiona Ctrl+C para detener   ║
-╚════════════════════════════════╝
+[OK] ESTUDIUS - Servidor iniciado
+[OK] URL: http://localhost:3000
+[OK] Presiona Ctrl+C para detener
 ```
 
 ### 3️⃣ Abrir navegador
