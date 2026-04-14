@@ -196,6 +196,60 @@ class TeacherService {
   }
 
   /**
+   * Actualizar profesor existente
+   */
+  static async updateTeacher(id, teacherData) {
+    // Verificar existencia
+    let existing;
+    try {
+      existing = await TeacherRepository.getById(id);
+    } catch (err) {
+      existing = null;
+    }
+
+    if (!existing) {
+      const error = new Error('Profesor no encontrado');
+      error.code = 'NOT_FOUND';
+      throw error;
+    }
+
+    // Validar datos completos
+    const validation = this.validateTeacherData(teacherData);
+    if (!validation.isValid) {
+      const error = new Error('Datos inválidos');
+      error.details = validation.errors;
+      throw error;
+    }
+
+    // Verificar email único (si cambia el email)
+    if (teacherData.email) {
+      const byEmail = await TeacherRepository.getByEmail(teacherData.email);
+      if (byEmail && byEmail.id !== id) {
+        const error = new Error('El email ya está registrado');
+        error.code = 'EMAIL_EXISTS';
+        throw error;
+      }
+    }
+
+    // Ejecutar actualización
+    await TeacherRepository.update(id, teacherData);
+    return true;
+  }
+
+  /**
+   * Eliminar profesor por id
+   */
+  static async deleteTeacher(id) {
+    const deleted = await TeacherRepository.delete(id);
+    if (!deleted) {
+      const error = new Error('Profesor no encontrado');
+      error.code = 'NOT_FOUND';
+      throw error;
+    }
+    return true;
+  }
+
+  /**
    * Buscar profesores por filtros
    */
   static async searchTeachers(filters) {

@@ -131,6 +131,55 @@ class TeacherController {
   }
 
   /**
+   * Actualizar profesor
+   * PUT /api/teachers/:id
+   */
+  static async updateTeacher(req, res) {
+    try {
+      const { id } = req.params;
+      const teacherData = req.body;
+
+      await TeacherService.updateTeacher(parseInt(id), teacherData);
+
+      res.json({
+        success: true,
+        message: 'Profesor actualizado exitosamente'
+      });
+    } catch (error) {
+      if (error.code === 'NOT_FOUND') {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+
+      if (error.details) {
+        return res.status(400).json({ success: false, message: 'Datos inválidos', errors: error.details });
+      }
+
+      console.error('Error en updateTeacher:', error);
+      res.status(500).json({ success: false, message: 'Error al actualizar profesor', error: error.message });
+    }
+  }
+
+  /**
+   * Eliminar profesor
+   * DELETE /api/teachers/:id
+   */
+  static async deleteTeacher(req, res) {
+    try {
+      const { id } = req.params;
+      const deleted = await TeacherService.deleteTeacher(parseInt(id));
+
+      if (!deleted) {
+        return res.status(404).json({ success: false, message: 'Profesor no encontrado' });
+      }
+
+      res.json({ success: true, message: 'Profesor eliminado exitosamente' });
+    } catch (error) {
+      console.error('Error en deleteTeacher:', error);
+      res.status(500).json({ success: false, message: 'Error al eliminar profesor', error: error.message });
+    }
+  }
+
+  /**
    * Obtener profesores recomendados (con algoritmo)
    * GET /api/teachers/recommendations
    */
