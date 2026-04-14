@@ -59,7 +59,7 @@ Una aplicación web moderna para conectar estudiantes con tutores privados. Perm
 ### Ventajas del Stack Elegido
 
 **Frontend:**
-- Sin dependencias externas (JavaScript Vanilla)
+- Sin dependencias externas (html)
 - Carga rápida
 - Fácil de mantener
 - Compatible con todos los navegadores
@@ -80,7 +80,7 @@ Una aplicación web moderna para conectar estudiantes con tutores privados. Perm
 
 ## 📦 Requisitos
 
-- Node.js >= 14.0.0
+- Node.js >= 14.0.0 (https://nodejs.org/en/download/current)
 - npm >= 6.0.0
 - SQLite3 (incluido en el paquete npm)
 - Navegador moderno (Chrome, Firefox, Safari, Edge)
@@ -578,7 +578,7 @@ MIT License - © 2026 Estudius
 **Lema:** Si querés estudiar, Estudius es el lugar
 
 **Grupo:**
-Ezequiel Mateo Gomez Paz:
+Ezequiel Mateo Gomez Paz
 Mateo Alonso Marangone
 Benito Deleon 
 Ivan Medina
