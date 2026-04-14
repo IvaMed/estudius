@@ -82,7 +82,8 @@ const TeacherModel = {
   // Información de clases
   classSize: Number,           // Obligatorio, 0 < classSize < 30
   subjects: Array,             // Obligatorio, array de materias
-  modality: String,            // Obligatorio: 'virtual' | 'presencial'
+  modality: String,            // Obligatorio (deprecated): 'virtual' | 'presencial'
+  modalities: Array,          // Nueva: puede contener ['virtual','presencial']
   schedules: String,           // Obligatorio, texto con horarios
   location: String,            // Obligatorio si presencial, NULL si virtual
   
@@ -137,18 +138,41 @@ const ValidateTeacher = {
   },
   
   modality: (value) => {
+    // backward compatible: single modality allowed
     return value === 'virtual' || value === 'presencial';
+  },
+
+  modalities: (value) => {
+    // Accept either a single string or an array of allowed modalities
+    const allowed = ['virtual', 'presencial'];
+    if (!value) return false;
+    if (Array.isArray(value)) {
+      if (value.length === 0) return false;
+      return value.every(m => allowed.includes(m));
+    }
+    if (typeof value === 'string') {
+      return allowed.includes(value);
+    }
+    return false;
   },
   
   schedules: (value) => {
     return typeof value === 'string' && value.trim().length > 0;
   },
   
-  location: (value, modality) => {
-    if (modality === 'presencial') {
+  location: (value, modalityOrModalities) => {
+    // Accept either a single modality string or array of modalities
+    let requiresLocation = false;
+    if (Array.isArray(modalityOrModalities)) {
+      requiresLocation = modalityOrModalities.includes('presencial');
+    } else {
+      requiresLocation = modalityOrModalities === 'presencial';
+    }
+
+    if (requiresLocation) {
       return typeof value === 'string' && value.trim().length > 0;
     }
-    return true; // Opcional si es virtual
+    return true; // Opcional si no requiere presencial
   }
 };
 

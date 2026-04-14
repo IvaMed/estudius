@@ -25,6 +25,7 @@ class TeacherController {
         classSize,
         subjects,
         modality,
+        modalities,
         schedules,
         location
       } = req.body;
@@ -42,6 +43,7 @@ class TeacherController {
         classSize: parseInt(classSize),
         subjects: Array.isArray(subjects) ? subjects : [],
         modality,
+        modalities: Array.isArray(modalities) ? modalities : (modalities ? [modalities] : (modality ? [modality] : [])),
         schedules: schedules?.trim(),
         location: location?.trim() || null
       });
