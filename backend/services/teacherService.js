@@ -91,8 +91,14 @@ class TeacherService {
     }
 
     // Separar por modalidad
-    const virtual = teachers.filter(t => t.modality === 'virtual');
-    const presencial = teachers.filter(t => t.modality === 'presencial');
+    const virtual = teachers.filter(t => {
+      const modalities = t.modalities || (t.modality ? [t.modality] : []);
+      return Array.isArray(modalities) && modalities.includes('virtual');
+    });
+    const presencial = teachers.filter(t => {
+      const modalities = t.modalities || (t.modality ? [t.modality] : []);
+      return Array.isArray(modalities) && modalities.includes('presencial');
+    });
 
     // Intercalar para tener balance
     const balanced = [];
@@ -161,9 +167,9 @@ class TeacherService {
       errors.subjects = 'Debe seleccionar al menos una materia válida';
     }
 
-    // Validar modality
-    if (!ValidateTeacher.modality(data.modality)) {
-      errors.modality = 'Modalidad debe ser "virtual" o "presencial"';
+    // Validar modalities (acepta string o array)
+    if (!ValidateTeacher.modalities(data.modalities || data.modality)) {
+      errors.modalities = 'Modalidad debe ser "virtual" o "presencial" (puede ser múltiple)';
     }
 
     // Validar schedules
@@ -197,7 +203,12 @@ class TeacherService {
 
     // Filtrar por modalidad
     if (filters.modality) {
-      teachers = teachers.filter(t => t.modality === filters.modality);
+      // filters.modality puede ser 'virtual' o 'presencial' o lista separada por comas
+      const requested = Array.isArray(filters.modality) ? filters.modality : String(filters.modality).split(',');
+      teachers = teachers.filter(t => {
+        const modalities = t.modalities || (t.modality ? [t.modality] : []);
+        return modalities.some(m => requested.includes(m));
+      });
     }
 
     // Filtrar por materia

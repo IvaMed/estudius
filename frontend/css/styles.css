@@ -372,6 +372,22 @@ footer {
   border-color: var(--isotipo-dark);
 }
 
+/* Estilo para opciones del dropdown de materias cuando están activas */
+.subject-option {
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius);
+  background: white;
+  border: 1px solid #ddd;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.subject-option.active {
+  background-color: var(--isotipo-dark);
+  color: var(--color-white);
+  border-color: var(--isotipo-dark);
+}
+
 /* ========================================
    GRID DE PROFESORES
    ======================================== */

@@ -21,6 +21,7 @@ class TeacherRepository {
       classSize,
       subjects,
       modality,
+      modalities,
       schedules,
       location
     } = teacherData;
@@ -28,8 +29,8 @@ class TeacherRepository {
     const sql = `
       INSERT INTO teachers (
         firstName, lastName, age, email, phone, description, curriculum,
-        photo, classSize, subjects, modality, schedules, location
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        photo, classSize, subjects, modality, modalities, schedules, location
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const result = await dbRun(sql, [
@@ -44,6 +45,7 @@ class TeacherRepository {
       classSize,
       JSON.stringify(subjects),
       modality,
+      modalities ? JSON.stringify(modalities) : null,
       schedules,
       location || null
     ]);
@@ -58,10 +60,11 @@ class TeacherRepository {
     const sql = 'SELECT * FROM teachers ORDER BY createdAt DESC';
     const teachers = await dbAll(sql);
     
-    // Parsear JSON fields
+    // Parsear JSON fields y normalizar modalidades
     return teachers.map(teacher => ({
       ...teacher,
-      subjects: JSON.parse(teacher.subjects)
+      subjects: JSON.parse(teacher.subjects),
+      modalities: teacher.modalities ? JSON.parse(teacher.modalities) : (teacher.modality ? [teacher.modality] : [])
     }));
   }
 
@@ -74,6 +77,7 @@ class TeacherRepository {
     
     if (teacher) {
       teacher.subjects = JSON.parse(teacher.subjects);
+      teacher.modalities = teacher.modalities ? JSON.parse(teacher.modalities) : (teacher.modality ? [teacher.modality] : []);
       // Incrementar vistas para recomendación
       await this.incrementViews(id);
     }
@@ -90,6 +94,7 @@ class TeacherRepository {
     
     if (teacher) {
       teacher.subjects = JSON.parse(teacher.subjects);
+      teacher.modalities = teacher.modalities ? JSON.parse(teacher.modalities) : (teacher.modality ? [teacher.modality] : []);
     }
     
     return teacher;
@@ -111,7 +116,8 @@ class TeacherRepository {
     
     return teachers.map(teacher => ({
       ...teacher,
-      subjects: JSON.parse(teacher.subjects)
+      subjects: JSON.parse(teacher.subjects),
+      modalities: teacher.modalities ? JSON.parse(teacher.modalities) : (teacher.modality ? [teacher.modality] : [])
     }));
   }
 
@@ -129,7 +135,8 @@ class TeacherRepository {
     
     return teachers.map(teacher => ({
       ...teacher,
-      subjects: JSON.parse(teacher.subjects)
+      subjects: JSON.parse(teacher.subjects),
+      modalities: teacher.modalities ? JSON.parse(teacher.modalities) : (teacher.modality ? [teacher.modality] : [])
     }));
   }
 
@@ -147,7 +154,8 @@ class TeacherRepository {
       })
       .map(teacher => ({
         ...teacher,
-        subjects: JSON.parse(teacher.subjects)
+        subjects: JSON.parse(teacher.subjects),
+        modalities: teacher.modalities ? JSON.parse(teacher.modalities) : (teacher.modality ? [teacher.modality] : [])
       }));
   }
 
@@ -155,13 +163,20 @@ class TeacherRepository {
    * Buscar profesores por modalidad
    */
   static async getByModality(modality) {
-    const sql = 'SELECT * FROM teachers WHERE modality = ? ORDER BY createdAt DESC';
-    const teachers = await dbAll(sql, [modality]);
-    
-    return teachers.map(teacher => ({
-      ...teacher,
-      subjects: JSON.parse(teacher.subjects)
-    }));
+    // SQLite cannot easily query JSON arrays; obtener todos y filtrar en memoria
+    const sql = 'SELECT * FROM teachers ORDER BY createdAt DESC';
+    const teachers = await dbAll(sql);
+
+    return teachers
+      .filter(teacher => {
+        const modalities = teacher.modalities ? JSON.parse(teacher.modalities) : (teacher.modality ? [teacher.modality] : []);
+        return Array.isArray(modalities) && modalities.includes(modality);
+      })
+      .map(teacher => ({
+        ...teacher,
+        subjects: JSON.parse(teacher.subjects),
+        modalities: teacher.modalities ? JSON.parse(teacher.modalities) : (teacher.modality ? [teacher.modality] : [])
+      }));
   }
 
   /**
@@ -176,7 +191,7 @@ class TeacherRepository {
    * Actualizar profesor
    */
   static async update(id, teacherData) {
-    const { subjects, ...others } = teacherData;
+    const { subjects, modalities, ...others } = teacherData;
     
     const updates = [];
     const values = [];
@@ -189,6 +204,11 @@ class TeacherRepository {
     if (subjects) {
       updates.push('subjects = ?');
       values.push(JSON.stringify(subjects));
+    }
+
+    if (modalities) {
+      updates.push('modalities = ?');
+      values.push(JSON.stringify(modalities));
     }
 
     updates.push('updatedAt = CURRENT_TIMESTAMP');

@@ -183,7 +183,7 @@ function debounce(func, delay) {
 /**
  * Crear grid de profesores
  */
-function createTeacherCard(teacher) {
+function createTeacherCard(teacher, highlightSubject = null) {
   const card = document.createElement('div');
   card.className = 'teacher-card';
   card.style.cursor = 'pointer';
@@ -193,11 +193,19 @@ function createTeacherCard(teacher) {
     ? teacher.subjects 
     : JSON.parse(teacher.subjects || '[]');
   
-  const mainSubject = subjects && subjects.length > 0 
-    ? subjects[0] 
-    : 'Profesor';
+  let mainSubject = 'Profesor';
+  if (highlightSubject && Array.isArray(subjects) && subjects.includes(highlightSubject)) {
+    mainSubject = highlightSubject;
+  } else if (subjects && subjects.length > 0) {
+    mainSubject = subjects[0];
+  }
 
-  const modality = teacher.modality === 'virtual' ? '🖥️ Virtual' : '📍 Presencial';
+  // Soporta varias modalidades en `teacher.modalities` o compatibilidad con `teacher.modality`
+  const _modalities = Array.isArray(teacher.modalities)
+    ? teacher.modalities
+    : (typeof teacher.modalities === 'string' ? JSON.parse(teacher.modalities) : (teacher.modality ? [teacher.modality] : []));
+
+  const modality = (_modalities || []).map(m => m === 'virtual' ? '🖥️ Virtual' : '📍 Presencial').join(' • ');
 
   card.innerHTML = `
     <div class="teacher-card-image">

@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS teachers (
     classSize INTEGER NOT NULL CHECK(classSize > 0 AND classSize < 30),
     subjects TEXT NOT NULL,           -- JSON array de materias
     modality TEXT NOT NULL CHECK(modality IN ('virtual', 'presencial')),
+    modalities TEXT,                   -- JSON array de modalidades (p.ej. ["virtual","presencial"]) - nuevo
     schedules TEXT NOT NULL,           -- Texto con horarios
     location TEXT,                     -- Puede ser NULL si es virtual
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,

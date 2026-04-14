@@ -9,6 +9,7 @@ class EstudiusApp {
     this.currentPage_pagination = 1;
     this.allTeachers = [];
     this.currentTeacher = null;
+    this.currentDisplayedTeachers = [];
     
     // Estado de filtros
     this.filters = {
@@ -185,8 +186,17 @@ class EstudiusApp {
     document.querySelectorAll('.category-btn').forEach(btn => {
       if (btn.id !== 'verTodasBtn') {
         btn.addEventListener('click', (e) => {
-          const subject = e.target.dataset.filterSubject;
-          this.filterBySubject(subject);
+          const subject = btn.dataset.filterSubject;
+          const isActive = btn.classList.contains('active');
+          if (isActive) {
+            // Deselect: quitar marca y mostrar todos
+            this.updateCategorySelectionUI(null);
+            this.filterBySubject('all');
+          } else {
+            // Seleccionar esta materia (remover active de otros)
+            this.updateCategorySelectionUI(subject);
+            this.filterBySubject(subject);
+          }
         });
       }
     });
@@ -215,7 +225,14 @@ class EstudiusApp {
         subjectsGrid.querySelectorAll('.subject-option').forEach(btn => {
           btn.addEventListener('click', (e) => {
             const subject = e.target.dataset.subject;
-            this.filterBySubject(subject);
+            const isActive = e.target.classList.contains('active');
+            if (isActive) {
+              this.updateCategorySelectionUI(null);
+              this.filterBySubject('all');
+            } else {
+              this.updateCategorySelectionUI(subject);
+              this.filterBySubject(subject);
+            }
             subjectsDropdown.style.display = 'none';
           });
           btn.addEventListener('mouseover', (e) => {
@@ -254,9 +271,12 @@ class EstudiusApp {
           });
         }
         
-        // Luego filtrar por modalidad
+        // Luego filtrar por modalidad (soporta teacher.modalities array)
         if (selectedModalities.length > 0) {
-          filtered = filtered.filter(t => selectedModalities.includes(t.modality));
+          filtered = filtered.filter(t => {
+            const modalities = Array.isArray(t.modalities) ? t.modalities : (typeof t.modalities === 'string' ? JSON.parse(t.modalities || '[]') : (t.modality ? [t.modality] : []));
+            return Array.isArray(modalities) && modalities.some(m => selectedModalities.includes(m));
+          });
         }
         
         this.displayTeachers(filtered);
@@ -267,6 +287,8 @@ class EstudiusApp {
   // Aplicar filtros actuales (NO USAR - se quedó obsoleto, usar filterBySubject directamente)
   applyFilters() {
     this.currentPage_pagination = 1;
+    // Empezar con todos los profesores
+    let filtered = [...this.allTeachers];
 
     // Filtrar por materia si hay seleccionada
     if (this.filters.subject) {
@@ -285,8 +307,11 @@ class EstudiusApp {
     }
 
     // Filtrar por modalidad si hay seleccionadas
-    if (this.filters.modalities.length > 0) {
-      filtered = filtered.filter(t => this.filters.modalities.includes(t.modality));
+    if (this.filters.modalities && this.filters.modalities.length > 0) {
+      filtered = filtered.filter(t => {
+        const modalities = Array.isArray(t.modalities) ? t.modalities : (typeof t.modalities === 'string' ? JSON.parse(t.modalities || '[]') : (t.modality ? [t.modality] : []));
+        return Array.isArray(modalities) && modalities.some(m => this.filters.modalities.includes(m));
+      });
     }
 
     this.displayTeachers(filtered);
@@ -326,16 +351,44 @@ class EstudiusApp {
     this.displayTeachers(filtered);
   }
 
+  updateCategorySelectionUI(subject) {
+    // Remover 'active' de todos los botones de categoría (excepto Ver Todas)
+    document.querySelectorAll('.category-btn').forEach(btn => {
+      if (btn.id !== 'verTodasBtn') btn.classList.remove('active');
+    });
+
+    // Remover 'active' también de opciones del dropdown
+    document.querySelectorAll('.subject-option').forEach(opt => opt.classList.remove('active'));
+
+    if (!subject) return;
+
+    // Agregar 'active' al botón que coincida con la materia (si existe en el grid principal)
+    let found = false;
+    document.querySelectorAll('.category-btn').forEach(btn => {
+      if (btn.dataset && btn.dataset.filterSubject === subject) {
+        btn.classList.add('active');
+        found = true;
+      }
+    });
+
+    // Si no está en los botones principales, marcar la opción del dropdown
+    if (!found) {
+      const dropdownBtn = document.querySelector(`.subject-option[data-subject="${subject}"]`);
+      if (dropdownBtn) dropdownBtn.classList.add('active');
+    }
+  }
+
   async loadRecommendedTeachers() {
     try {
       const result = await TeacherAPI.getRandomTeachers(10);
       const teachersGrid = document.getElementById('recommendedTeachers');
 
       if (result.data && result.data.length > 0) {
-        // Parse subjects from JSON string to array
+        // Parse subjects and modalities from JSON string to arrays
         this.allTeachers = result.data.map(teacher => ({
           ...teacher,
-          subjects: typeof teacher.subjects === 'string' ? JSON.parse(teacher.subjects) : teacher.subjects
+          subjects: typeof teacher.subjects === 'string' ? JSON.parse(teacher.subjects) : teacher.subjects,
+          modalities: teacher.modalities ? (typeof teacher.modalities === 'string' ? JSON.parse(teacher.modalities) : teacher.modalities) : (teacher.modality ? [teacher.modality] : [])
         }));
         this.displayTeachers(this.allTeachers);
       } else {
@@ -352,7 +405,10 @@ class EstudiusApp {
     const grid = document.getElementById('recommendedTeachers');
     grid.innerHTML = '';
 
-    if (teachers.length === 0) {
+    // Guardar la lista actual (para paginación y acciones posteriores)
+    this.currentDisplayedTeachers = teachers || [];
+
+    if (this.currentDisplayedTeachers.length === 0) {
       grid.innerHTML = '<p>No se encontraron profesores</p>';
       return;
     }
@@ -360,14 +416,14 @@ class EstudiusApp {
     // Paginar
     const start = (this.currentPage_pagination - 1) * this.teachersPerPage;
     const end = start + this.teachersPerPage;
-    const paginatedTeachers = teachers.slice(start, end);
+    const paginatedTeachers = this.currentDisplayedTeachers.slice(start, end);
 
     paginatedTeachers.forEach(teacher => {
-      grid.appendChild(createTeacherCard(teacher));
+      grid.appendChild(createTeacherCard(teacher, this.filters.subject));
     });
 
     // Renderizar paginación
-    this.renderPagination(teachers.length);
+    this.renderPagination(this.currentDisplayedTeachers.length);
   }
 
   renderPagination(total) {
@@ -390,14 +446,14 @@ class EstudiusApp {
     document.getElementById('prevBtn').addEventListener('click', () => {
       if (this.currentPage_pagination > 1) {
         this.currentPage_pagination--;
-        this.displayTeachers(this.allTeachers);
+        this.displayTeachers(this.currentDisplayedTeachers);
       }
     });
 
     document.getElementById('nextBtn').addEventListener('click', () => {
       if (this.currentPage_pagination < pages) {
         this.currentPage_pagination++;
-        this.displayTeachers(this.allTeachers);
+        this.displayTeachers(this.currentDisplayedTeachers);
       }
     });
 
@@ -405,7 +461,7 @@ class EstudiusApp {
       const page = parseInt(e.target.value);
       if (page >= 1 && page <= pages) {
         this.currentPage_pagination = page;
-        this.displayTeachers(this.allTeachers);
+        this.displayTeachers(this.currentDisplayedTeachers);
       }
     });
   }
@@ -416,24 +472,14 @@ class EstudiusApp {
     if (filter === 'all') {
       this.displayTeachers(this.allTeachers);
     } else {
-      const filtered = this.allTeachers.filter(t => t.modality === filter);
-      this.displayTeachers(filtered);
-    }
-  }
-
-  filterBySubject(subject) {
-    this.currentPage_pagination = 1;
-
-    if (subject === 'all') {
-      this.displayTeachers(this.allTeachers);
-    } else {
       const filtered = this.allTeachers.filter(t => {
-        const subjects = Array.isArray(t.subjects) ? t.subjects : JSON.parse(t.subjects || '[]');
-        return subjects.includes(subject);
+        const modalities = Array.isArray(t.modalities) ? t.modalities : (typeof t.modalities === 'string' ? JSON.parse(t.modalities || '[]') : (t.modality ? [t.modality] : []));
+        return Array.isArray(modalities) && modalities.includes(filter);
       });
       this.displayTeachers(filtered);
     }
   }
+
 
   filterByModality(modality) {
     this.currentPage_pagination = 1;
@@ -441,7 +487,10 @@ class EstudiusApp {
     if (!modality) {
       this.displayTeachers(this.allTeachers);
     } else {
-      const filtered = this.allTeachers.filter(t => t.modality === modality);
+      const filtered = this.allTeachers.filter(t => {
+        const modalities = Array.isArray(t.modalities) ? t.modalities : (typeof t.modalities === 'string' ? JSON.parse(t.modalities || '[]') : (t.modality ? [t.modality] : []));
+        return Array.isArray(modalities) && modalities.includes(modality);
+      });
       this.displayTeachers(filtered);
     }
   }
@@ -454,13 +503,14 @@ class EstudiusApp {
       const name = `${t.firstName} ${t.lastName}`.toLowerCase();
       const description = t.description.toLowerCase();
       const subjects = Array.isArray(t.subjects) ? t.subjects : JSON.parse(t.subjects || '[]');
-      const subjectsStr = subjects.map(s => s.toLowerCase()).join(' ');
-      const modality = t.modality.toLowerCase();
-      
-      return name.includes(queryLower) || 
-             description.includes(queryLower) || 
-             subjectsStr.includes(queryLower) ||
-             modality.includes(queryLower);
+            const subjectsStr = subjects.map(s => s.toLowerCase()).join(' ');
+            const modalitiesArr = Array.isArray(t.modalities) ? t.modalities : (typeof t.modalities === 'string' ? JSON.parse(t.modalities || '[]') : (t.modality ? [t.modality] : []));
+            const modalitiesStr = (modalitiesArr || []).map(m => m.toLowerCase()).join(' ');
+
+            return name.includes(queryLower) || 
+              description.includes(queryLower) || 
+              subjectsStr.includes(queryLower) ||
+              modalitiesStr.includes(queryLower);
     });
     this.displayTeachers(filtered);
   }
@@ -568,12 +618,17 @@ class EstudiusApp {
                 </div>
 
                 <div class="form-group required">
-                  <label for="modality">Modalidad</label>
-                  <select id="modality" name="modality" required>
-                    <option value="">Seleccionar...</option>
-                    <option value="virtual">Virtual</option>
-                    <option value="presencial">Presencial</option>
-                  </select>
+                  <label>Modalidad</label>
+                  <div style="display: flex; gap: var(--spacing-md); align-items: center;">
+                    <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+                      <input type="checkbox" name="modalities" value="virtual" />
+                      🖥️ Virtual
+                    </label>
+                    <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+                      <input type="checkbox" name="modalities" value="presencial" />
+                      📍 Presencial
+                    </label>
+                  </div>
                   <div class="form-error"></div>
                 </div>
               </div>
@@ -612,7 +667,7 @@ class EstudiusApp {
 
     // Event listeners del formulario
     const form = document.getElementById('addTeacherForm');
-    const modalitySelect = document.getElementById('modality');
+    const modalityCheckboxes = document.querySelectorAll('input[name="modalities"]');
     const toggleSubjectsBtn = document.getElementById('toggleSubjects');
     const subjectsContainer = document.getElementById('subjectsContainer');
     const toggleIcon = document.getElementById('toggleIcon');
@@ -625,17 +680,18 @@ class EstudiusApp {
       toggleIcon.textContent = isVisible ? '▶' : '▼';
     });
 
-    // Mostrar/ocultar ubicación según modalidad
-    modalitySelect.addEventListener('change', (e) => {
+    // Mostrar/ocultar ubicación según modalidades seleccionadas
+    modalityCheckboxes.forEach(cb => cb.addEventListener('change', () => {
       const locationGroup = document.getElementById('locationGroup');
-      if (e.target.value === 'presencial') {
+      const checked = Array.from(document.querySelectorAll('input[name="modalities"]:checked')).map(c => c.value);
+      if (checked.includes('presencial')) {
         locationGroup.style.display = 'block';
         document.getElementById('location').required = true;
       } else {
         locationGroup.style.display = 'none';
         document.getElementById('location').required = false;
       }
-    });
+    }));
 
     // Vista previa de foto
     const photoInput = document.getElementById('photo');
@@ -681,7 +737,7 @@ class EstudiusApp {
     const description = document.getElementById('description').value.trim();
     const curriculum = document.getElementById('curriculum').value.trim();
     const classSize = parseInt(document.getElementById('classSize').value);
-    const modality = document.getElementById('modality').value;
+    const modalities = Array.from(document.querySelectorAll('input[name="modalities"]:checked')).map(cb => cb.value);
     const schedules = document.getElementById('schedules').value.trim();
     const location = document.getElementById('location').value.trim();
 
@@ -693,9 +749,9 @@ class EstudiusApp {
     if (!description) errors.push('La descripción del profesor es requerida');
     if (!curriculum) errors.push('El temario/currículo es requerido');
     if (isNaN(classSize) || classSize < 1 || classSize > 29) errors.push('La cantidad de alumnos debe estar entre 1 y 29');
-    if (!modality) errors.push('La modalidad es requerida');
+    if (!modalities || modalities.length === 0) errors.push('La modalidad es requerida');
     if (!schedules) errors.push('Los horarios son requeridos');
-    if (modality === 'presencial' && !location) errors.push('La ubicación es requerida para clases presenciales');
+    if (Array.isArray(modalities) && modalities.includes('presencial') && !location) errors.push('La ubicación es requerida para clases presenciales');
 
     return errors;
   }
@@ -809,7 +865,7 @@ class EstudiusApp {
       description: document.getElementById('description').value.trim(),
       curriculum: document.getElementById('curriculum').value.trim(),
       classSize: parseInt(document.getElementById('classSize').value),
-      modality: document.getElementById('modality').value,
+      modalities: Array.from(document.querySelectorAll('input[name="modalities"]:checked')).map(cb => cb.value),
       schedules: document.getElementById('schedules').value.trim(),
       location: document.getElementById('location').value.trim() || null,
       photo: photoBase64,
@@ -864,7 +920,7 @@ class EstudiusApp {
       hasErrors = true;
     }
 
-    if (!formData.modality) {
+    if (!formData.modalities || formData.modalities.length === 0) {
       setFieldError('modality', 'Selecciona una modalidad');
       hasErrors = true;
     }
@@ -874,7 +930,7 @@ class EstudiusApp {
       hasErrors = true;
     }
 
-    if (formData.modality === 'presencial' && !formData.location) {
+    if (Array.isArray(formData.modalities) && formData.modalities.includes('presencial') && !formData.location) {
       setFieldError('location', 'Ubicación requerida para clases presenciales');
       hasErrors = true;
     }
@@ -925,7 +981,12 @@ class EstudiusApp {
       const result = await TeacherAPI.getAllTeachers();
       
       if (result.data && result.data.length > 0) {
-        this.allTeachers = result.data;
+        // Parse subjects and modalities
+        this.allTeachers = result.data.map(teacher => ({
+          ...teacher,
+          subjects: typeof teacher.subjects === 'string' ? JSON.parse(teacher.subjects) : teacher.subjects,
+          modalities: teacher.modalities ? (typeof teacher.modalities === 'string' ? JSON.parse(teacher.modalities) : teacher.modalities) : (teacher.modality ? [teacher.modality] : [])
+        }));
         this.displayListTeachers(this.allTeachers);
       } else {
         document.getElementById('teachersList').innerHTML = '<p>No hay profesores registrados</p>';
@@ -940,7 +1001,10 @@ class EstudiusApp {
     const grid = document.getElementById('teachersList');
     grid.innerHTML = '';
 
-    if (teachers.length === 0) {
+    // Guardar la lista actual (para paginación en esta vista)
+    this.currentDisplayedTeachers = teachers || [];
+
+    if (this.currentDisplayedTeachers.length === 0) {
       grid.innerHTML = '<p>No se encontraron profesores</p>';
       return;
     }
@@ -948,14 +1012,14 @@ class EstudiusApp {
     // Paginar
     const start = (this.currentPage_pagination - 1) * this.teachersPerPage;
     const end = start + this.teachersPerPage;
-    const paginatedTeachers = teachers.slice(start, end);
+    const paginatedTeachers = this.currentDisplayedTeachers.slice(start, end);
 
     paginatedTeachers.forEach(teacher => {
-      grid.appendChild(createTeacherCard(teacher));
+      grid.appendChild(createTeacherCard(teacher, this.filters.subject));
     });
 
     // Renderizar paginación
-    this.renderListPagination(teachers.length);
+    this.renderListPagination(this.currentDisplayedTeachers.length);
   }
 
   renderListPagination(total) {
@@ -978,14 +1042,14 @@ class EstudiusApp {
     document.getElementById('prevBtn2').addEventListener('click', () => {
       if (this.currentPage_pagination > 1) {
         this.currentPage_pagination--;
-        this.displayListTeachers(this.allTeachers);
+        this.displayListTeachers(this.currentDisplayedTeachers);
       }
     });
 
     document.getElementById('nextBtn2').addEventListener('click', () => {
       if (this.currentPage_pagination < pages) {
         this.currentPage_pagination++;
-        this.displayListTeachers(this.allTeachers);
+        this.displayListTeachers(this.currentDisplayedTeachers);
       }
     });
 
@@ -993,7 +1057,7 @@ class EstudiusApp {
       const page = parseInt(e.target.value);
       if (page >= 1 && page <= pages) {
         this.currentPage_pagination = page;
-        this.displayListTeachers(this.allTeachers);
+        this.displayListTeachers(this.currentDisplayedTeachers);
       }
     });
   }
@@ -1046,7 +1110,7 @@ class EstudiusApp {
                 <h3>Clases</h3>
                 <div class="detail-info-item">
                   <span class="detail-info-label">Modalidad:</span>
-                  <span class="detail-info-value">${teacher.modality === 'virtual' ? '📱 Virtual' : '📍 Presencial'}</span>
+                  <span class="detail-info-value">${(Array.isArray(teacher.modalities) ? teacher.modalities : (teacher.modalities ? JSON.parse(teacher.modalities) : (teacher.modality ? [teacher.modality] : []))).map(m => m === 'virtual' ? '📱 Virtual' : '📍 Presencial').join(' • ')}</span>
                 </div>
                 <div class="detail-info-item">
                   <span class="detail-info-label">Cantidad Alumnos:</span>
@@ -1189,11 +1253,17 @@ class EstudiusApp {
 
               <div class="form-row">
                 <div class="form-group">
-                  <label for="modality">Modalidad</label>
-                  <select id="modality" name="modality" required>
-                    <option value="virtual" ${teacher.modality === 'virtual' ? 'selected' : ''}>Virtual</option>
-                    <option value="presencial" ${teacher.modality === 'presencial' ? 'selected' : ''}>Presencial</option>
-                  </select>
+                  <label>Modalidad</label>
+                  <div style="display: flex; gap: var(--spacing-md); align-items: center;">
+                    <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+                      <input type="checkbox" name="modalities" value="virtual" ${Array.isArray(teacher.modalities) && teacher.modalities.includes('virtual') ? 'checked' : ''} />
+                      🖥️ Virtual
+                    </label>
+                    <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+                      <input type="checkbox" name="modalities" value="presencial" ${Array.isArray(teacher.modalities) && teacher.modalities.includes('presencial') ? 'checked' : ''} />
+                      📍 Presencial
+                    </label>
+                  </div>
                   <div class="form-error"></div>
                 </div>
 
@@ -1271,7 +1341,8 @@ class EstudiusApp {
     const data = new FormData(form);
     
     const subjects = Array.from(form.querySelectorAll('input[name="subjects"]:checked')).map(cb => cb.value);
-    
+    const modalities = Array.from(form.querySelectorAll('input[name="modalities"]:checked')).map(cb => cb.value);
+
     const updateData = {
       firstName: data.get('firstName'),
       lastName: data.get('lastName'),
@@ -1280,7 +1351,7 @@ class EstudiusApp {
       phone: data.get('phone') || null,
       description: data.get('description'),
       curriculum: data.get('curriculum'),
-      modality: data.get('modality'),
+      modalities: modalities,
       classSize: parseInt(data.get('classSize')),
       schedules: data.get('schedules'),
       location: data.get('location') || null,

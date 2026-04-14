@@ -51,8 +51,16 @@ class TeacherAPI {
       );
       return await response.json();
     } catch (error) {
-      console.error('Error al obtener recomendaciones:', error);
-      throw error;
+      console.error('Error al obtener recomendaciones desde API, intentando fallback local:', error);
+      try {
+        const fallback = await fetch('./data/teachers.json');
+        const json = await fallback.json();
+        const list = json.data || json || [];
+        return { data: list.slice(0, limit) };
+      } catch (err) {
+        console.error('Error cargando fallback local:', err);
+        throw error;
+      }
     }
   }
 
@@ -66,8 +74,16 @@ class TeacherAPI {
       );
       return await response.json();
     } catch (error) {
-      console.error('Error al obtener profesores aleatorios:', error);
-      throw error;
+      console.error('Error al obtener profesores aleatorios desde API, intentando fallback local:', error);
+      try {
+        const fallback = await fetch('./data/teachers.json');
+        const json = await fallback.json();
+        const list = json.data || json || [];
+        return { data: list.slice(0, limit) };
+      } catch (err) {
+        console.error('Error cargando fallback local:', err);
+        throw error;
+      }
     }
   }
 
