@@ -34,7 +34,8 @@ Una aplicación web moderna para conectar estudiantes con tutores privados. Perm
 ### Para Administradores
 - ✅ Agregar nuevos profesores
 - ✅ Validación completa de datos
-- ✅ Gestión de materias (35+ opciones)
+- ✅ Gestión de materias
+- 
 - ✅ Subida de fotos
 - ✅ Información detallada de clases
 
