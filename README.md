@@ -35,7 +35,6 @@ Una aplicación web moderna para conectar estudiantes con tutores privados. Perm
 - ✅ Agregar nuevos profesores
 - ✅ Validación completa de datos
 - ✅ Gestión de materias
-- 
 - ✅ Subida de fotos
 - ✅ Información detallada de clases
 
@@ -575,11 +574,15 @@ MIT License - © 2026 Estudius
 ---
 
 ## 👥 Equipo
-
-**Desarrollado por:** IA Challenge Team
 **Empresa:** Estudius
 **Lema:** Si querés estudiar, Estudius es el lugar
 
+**Grupo:**
+Ezequiel Mateo Gomez Paz:
+Mateo Alonso Marangone
+Benito Deleon 
+Ivan Medina
+Francisco Colombo
 ---
 
 ## 📞 Soporte
