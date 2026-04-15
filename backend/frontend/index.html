@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estudius - Encuentra tu Profesor Ideal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- HEADER -->
+  <header>
+    <div class="header-left">
+      <img id="siteLogo" class="header-logo-image" src="" alt="Estudius logo" />
+      <div class="header-logo-text">
+        <h1 style="font-size: 1.5rem; font-weight: bold;">Estudius</h1>
+        <p style="font-size: 1.0rem;">Si querés estudiar, Estudius es el lugar</p>
+      </div>
+    </div>
+
+    <nav>
+      <ul class="nav-menu">
+        <li><a href="#home">Home</a></li>
+        <li><a href="#add-teacher" data-page="add-teacher">Agregar Profesor</a></li>
+        <li><a href="#list-teachers" data-page="list-teachers">Listado</a></li>
+      </ul>
+    </nav>
+    <div class="header-right">
+      <button class="btn-header btn-signin">Iniciar sesión</button>
+      <button class="btn-header btn-signup">Registrarse</button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main></main>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-content">
+      <img id="footerLogo" class="footer-logo-image" src="" alt="Estudius logo" />
+      <div class="footer-text">
+        <p>&copy; 2026 Estudius. Todos los derechos reservados.</p>
+        <p>Si querés estudiar, Estudius es el lugar.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Config and Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+
+  <script>
+    // Agregar listeners a botones del header que no tienen data-page
+    document.addEventListener('DOMContentLoaded', function() {
+      // Menú hamburguesa para móviles (futuro)
+      const headerLeft = document.querySelector('.header-left');
+      headerLeft.addEventListener('click', function(e) {
+        if (e.target.closest('.header-logo-text') || e.target.closest('.header-logo') || e.target.closest('.header-logo-image')) {
+          window.location.hash = '';
+        }
+      });
+
+      // Botones de navegación con data-page del menú
+      const navLinks = document.querySelectorAll('[data-page]');
+      navLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+          if (!this.hasAttribute('href')) {
+            e.preventDefault();
+            const pageName = this.dataset.page;
+            if (window.app) {
+              window.app.showPage(pageName);
+              window.location.hash = pageName;
+            }
+          }
+        });
+      });
+    });
+  </script>
+</body>
+</html>
