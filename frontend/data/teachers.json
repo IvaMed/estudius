@@ -1,0 +1,1138 @@
+{
+  "data": [
+    {
+      "id": 1,
+      "firstName": "Alejandro",
+      "lastName": "Díaz",
+      "age": 60,
+      "email": "alejandro.díaz.1@mail.com",
+      "phone": "+54 9 956 6844732",
+      "description": "Docente con certificaciones internacionales. Creo en el aprendizaje significativo y el trabajo colaborativo.",
+      "curriculum": "Temas fundamentales hasta especialización. Trabajamos desde lo básico hasta conceptos avanzados según el nivel del estudiante.",
+      "photo": null,
+      "classSize": 2,
+      "subjects": [
+        "Física",
+        "Dibujo",
+        "Bases de Datos"
+      ],
+      "modality": "virtual",
+      "modalities": null,
+      "schedules": "Martes y Jueves: 10:00 a 18:00",
+      "location": null,
+      "createdAt": "2026-04-12 23:46:39",
+      "updatedAt": "2026-04-12 23:46:39",
+      "views": 48
+    },
+    {
+      "id": 2,
+      "firstName": "Carolina",
+      "lastName": "Fernández",
+      "age": 56,
+      "email": "carolina.fernández.2@mail.com",
+      "phone": "+54 9 398 2045900",
+      "description": "Profesor entusiasta y accesible. Disponible para consultas y tutorías adicionales. Excelentes referencias de estudiantes anteriores.",
+      "curriculum": "Temario integral con énfasis en comprensión profunda. Fomentamos el pensamiento crítico y el análisis.",
+      "photo": null,
+      "classSize": 3,
+      "subjects": [
+        "Biología",
+        "Música",
+        "Educación Cívica",
+        "Bases de Datos"
+      ],
+      "modality": "presencial",
+      "modalities": null,
+      "schedules": "Mañanas y tardes - previa coordinación",
+      "location": "CABA - Zona Norte",
+      "createdAt": "2026-04-12 23:46:39",
+      "updatedAt": "2026-04-12 23:46:39",
+      "views": 40
+    },
+    {
+      "id": 3,
+      "firstName": "Gabriela",
+      "lastName": "Rojas",
+      "age": 31,
+      "email": "gabriela.rojas.3@mail.com",
+      "phone": "+54 9 493 1860242",
+      "description": "Profesional con experiencia en enseñanza presencial y virtual. Utilizo recursos multimedia y ejercicios prácticos para mejor aprendizaje.",
+      "curriculum": "Enfoque comunicativo y participativo. Los estudiantes son protagonistas activos de su aprendizaje.",
+      "photo": null,
+      "classSize": 2,
+      "subjects": [
+        "Alemán",
+        "Economía",
+        "Algoritmos",
+        "Algebra Lineal"
+      ],
+      "modality": "presencial",
+      "modalities": null,
+      "schedules": "Lunes a Viernes: 15:00 a 20:00",
+      "location": "CABA - Zona Norte",
+      "createdAt": "2026-04-12 23:46:39",
+      "updatedAt": "2026-04-12 23:46:39",
+      "views": 45
+    },
+    {
+      "id": 4,
+      "firstName": "Juan",
+      "lastName": "Santos",
+      "age": 40,
+      "email": "juan.santos.4@mail.com",
+      "phone": "+54 9 958 4893958",
+      "description": "Profesional con experiencia en enseñanza presencial y virtual. Utilizo recursos multimedia y ejercicios prácticos para mejor aprendizaje.",
+      "curriculum": "Enfoque comunicativo y participativo. Los estudiantes son protagonistas activos de su aprendizaje.",
+      "photo": null,
+      "classSize": 4,
+      "subjects": [
+        "Geografía",
+        "Historia",
+        "Alemán"
+      ],
+      "modality": "presencial",
+      "modalities": null,
+      "schedules": "Lunes a Viernes: 15:00 a 20:00",
+      "location": "CABA - Zona Este",
+      "createdAt": "2026-04-12 23:46:39",
+      "updatedAt": "2026-04-12 23:46:39",
+      "views": 3
+    },
+    {
+      "id": 5,
+      "firstName": "Elena",
+      "lastName": "Pérez",
+      "age": 44,
+      "email": "elena.pérez.5@mail.com",
+      "phone": "+54 9 586 5834167",
+      "description": "Tutor con experiencia en preparación para exámenes y oposiciones. Metodología probada con altos índices de éxito.",
+      "curriculum": "Enfoque comunicativo y participativo. Los estudiantes son protagonistas activos de su aprendizaje.",
+      "photo": null,
+      "classSize": 3,
+      "subjects": [
+        "Mecánica",
+        "Psicología"
+      ],
+      "modality": "virtual",
+      "modalities": null,
+      "schedules": "Mañanas y tardes - previa coordinación",
+      "location": null,
+      "createdAt": "2026-04-12 23:46:39",
+      "updatedAt": "2026-04-12 23:46:39",
+      "views": 5
+    },
+    {
+      "id": 6,
+      "firstName": "Martina",
+      "lastName": "Rojas",
+      "age": 42,
+      "email": "martina.rojas.6@mail.com",
+      "phone": "+54 9 999 1268451",
+      "description": "Educador con especialización. Ofrezco clases dinámicas e interactivas. Disponible para resolver dudas fuera del horario de clase.",
+      "curriculum": "Enfoque comunicativo y participativo. Los estudiantes son protagonistas activos de su aprendizaje.",
+      "photo": null,
+      "classSize": 1,
+      "subjects": [
+        "Química",
+        "Historia",
+        "Química Orgánica",
+        "Dibujo"
+      ],
+      "modality": "virtual",
+      "modalities": null,
+      "schedules": "Martes y Jueves: 10:00 a 18:00",
+      "location": null,
+      "createdAt": "2026-04-12 23:46:39",
+      "updatedAt": "2026-04-12 23:46:39",
+      "views": 19
+    },
+    {
+      "id": 7,
+      "firstName": "Felipe",
+      "lastName": "Domínguez",
+      "age": 51,
+      "email": "felipe.domínguez.7@mail.com",
+      "phone": "+54 9 972 1947896",
+      "description": "Profesor entusiasta y accesible. Disponible para consultas y tutorías adicionales. Excelentes referencias de estudiantes anteriores.",
+      "curriculum": "Nivel introductorio a avanzado. Enfoque teórico-práctico. Ejercicios de consolidación y evaluación continua.",
+      "photo": null,
+      "classSize": 4,
+      "subjects": [
+        "Administración",
+        "Filosofía",
+        "Educación Cívica",
+        "Geografía"
+      ],
+      "modality": "presencial",
+      "modalities": null,
+      "schedules": "Flexible - consultar disponibilidad",
+      "location": "Gran Buenos Aires",
+      "createdAt": "2026-04-12 23:46:39",
+      "updatedAt": "2026-04-12 23:46:39",
+      "views": 48
+    },
+    {
+      "id": 8,
+      "firstName": "Carolina",
+      "lastName": "Santos",
+      "age": 42,
+      "email": "carolina.santos.8@mail.com",
+      "phone": "+54 9 839 8410903",
+      "description": "Educador innovador que utiliza las últimas herramientas tecnológicas para maximizar el aprendizaje de sus alumnos.",
+      "curriculum": "Programa flexible adaptable a necesidades. Puedo acelerar o desacelerar según el progreso del alumno.",
+      "photo": null,
+      "classSize": 3,
+      "subjects": [
+        "Filosofía",
+        "Historia"
+      ],
+      "modality": "virtual",
+      "modalities": null,
+      "schedules": "Mañanas y tardes - previa coordinación",
+      "location": null,
+      "createdAt": "2026-04-12 23:46:39",
+      "updatedAt": "2026-04-12 23:46:39",
+      "views": 6
+    },
+    {
+      "id": 9,
+      "firstName": "Alejandro",
+      "lastName": "Bravo",
+      "age": 60,
+      "email": "alejandro.bravo.9@mail.com",
+      "phone": "+54 9 164 9458743",
+      "description": "Profesional bilingüe/multilingüe. Experiencia internacional. Metodología comunicativa y práctica.",
+      "curriculum": "Enfoque comunicativo y participativo. Los estudiantes son protagonistas activos de su aprendizaje.",
+      "photo": null,
+      "classSize": 2,
+      "subjects": [
+        "Geografía",
+        "Mecánica"
+      ],
+      "modality": "presencial",
+      "modalities": null,
+      "schedules": "Martes y Jueves: 10:00 a 18:00",
+      "location": "CABA - Zona Sur",
+      "createdAt": "2026-04-12 23:46:39",
+      "updatedAt": "2026-04-12 23:46:39",
+      "views": 30
+    },
+    {
+      "id": 10,
+      "firstName": "Rosa",
+      "lastName": "Romero",
+      "age": 45,
+      "email": "rosa.romero.10@mail.com",
+      "phone": "+54 9 644 5261015",
+      "description": "Profesional con experiencia en enseñanza presencial y virtual. Utilizo recursos multimedia y ejercicios prácticos para mejor aprendizaje.",
+      "curriculum": "Nivel introductorio a avanzado. Enfoque teórico-práctico. Ejercicios de consolidación y evaluación continua.",
+      "photo": null,
+      "classSize": 2,
+      "subjects": [
+        "Algoritmos",
+        "Italiano",
+        "Dibujo"
+      ],
+      "modality": "virtual",
+      "modalities": null,
+      "schedules": "Horarios flexibles",
+      "location": null,
+      "createdAt": "2026-04-12 23:46:39",
+      "updatedAt": "2026-04-12 23:46:39",
+      "views": 33
+    },
+    {
+      "id": 14,
+      "firstName": "Julia",
+      "lastName": "Santos",
+      "age": 51,
+      "email": "teacher_1776127487452_8448@example.com",
+      "phone": "+54 9 341 7567 7682",
+      "description": "Profesor/a con experiencia en Inglés, Química. Contacto: +54 9 341 7567 7682",
+      "curriculum": "Programa estructurado de teoría y práctica",
+      "photo": "/assets/uploads/hombres/14.jpeg",
+      "classSize": 2,
+      "subjects": [
+        "Inglés",
+        "Química"
+      ],
+      "modality": "presencial",
+      "modalities": [
+        "presencial"
+      ],
+      "schedules": "Sábados 09:00-12:00",
+      "location": "CABA - Norte",
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 15
+    },
+    {
+      "id": 15,
+      "firstName": "María",
+      "lastName": "Fernández",
+      "age": 43,
+      "email": "teacher_1776127487462_5280@example.com",
+      "phone": "+54 9 221 6697 7893",
+      "description": "Profesor/a con experiencia en Inglés, Matemática. Contacto: +54 9 221 6697 7893",
+      "curriculum": "Programa estructurado de teoría y práctica",
+      "photo": "/assets/uploads/hombres/15.jpeg",
+      "classSize": 1,
+      "subjects": [
+        "Inglés",
+        "Matemática"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual"
+      ],
+      "schedules": "Sábados 09:00-12:00",
+      "location": null,
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 33
+    },
+    {
+      "id": 16,
+      "firstName": "Paula",
+      "lastName": "Silva",
+      "age": 50,
+      "email": "teacher_1776127487470_6529@example.com",
+      "phone": "+54 9 11 2960 2543",
+      "description": "Profesor/a con experiencia en Inglés, Matemática, Programación. Contacto: +54 9 11 2960 2543",
+      "curriculum": "Enfoque práctico con proyectos y evaluación continua",
+      "photo": "/assets/uploads/hombres/16.jpeg",
+      "classSize": 2,
+      "subjects": [
+        "Inglés",
+        "Matemática",
+        "Programación"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual"
+      ],
+      "schedules": "Sábados 09:00-12:00",
+      "location": null,
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 38
+    },
+    {
+      "id": 17,
+      "firstName": "Camila",
+      "lastName": "Fernández",
+      "age": 48,
+      "email": "teacher_1776127487478_6393@example.com",
+      "phone": "+54 9 351 8578 7319",
+      "description": "Profesor/a con experiencia en Lengua, Historia, Matemática, Inglés. Contacto: +54 9 351 8578 7319",
+      "curriculum": "Clases personalizadas con ejercicios y seguimiento",
+      "photo": "/assets/uploads/hombres/17.jpeg",
+      "classSize": 4,
+      "subjects": [
+        "Lengua",
+        "Historia",
+        "Matemática",
+        "Inglés"
+      ],
+      "modality": "presencial",
+      "modalities": [
+        "presencial"
+      ],
+      "schedules": "Lun/Mié/Vie 18:00-20:00",
+      "location": "Gran Buenos Aires",
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 40
+    },
+    {
+      "id": 18,
+      "firstName": "Sofía",
+      "lastName": "Martínez",
+      "age": 39,
+      "email": "teacher_1776127487486_2004@example.com",
+      "phone": "+54 9 11 8879 5800",
+      "description": "Profesor/a con experiencia en Inglés, Programación, Lengua. Contacto: +54 9 11 8879 5800",
+      "curriculum": "Enfoque práctico con proyectos y evaluación continua",
+      "photo": "/assets/uploads/hombres/18.jpeg",
+      "classSize": 2,
+      "subjects": [
+        "Inglés",
+        "Programación",
+        "Lengua"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual",
+        "presencial"
+      ],
+      "schedules": "Sábados 09:00-12:00",
+      "location": "Gran Buenos Aires",
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 17
+    },
+    {
+      "id": 19,
+      "firstName": "Camila",
+      "lastName": "Gómez",
+      "age": 51,
+      "email": "teacher_1776127487495_8194@example.com",
+      "phone": "+54 9 221 5783 1413",
+      "description": "Profesor/a con experiencia en Lengua, Programación. Contacto: +54 9 221 5783 1413",
+      "curriculum": "Enfoque práctico con proyectos y evaluación continua",
+      "photo": "/assets/uploads/hombres/19.jpeg",
+      "classSize": 2,
+      "subjects": [
+        "Lengua",
+        "Programación"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual",
+        "presencial"
+      ],
+      "schedules": "Mar/Jue 10:00-12:00",
+      "location": "CABA - Centro",
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 2
+    },
+    {
+      "id": 20,
+      "firstName": "Alex",
+      "lastName": "Rodríguez",
+      "age": 55,
+      "email": "teacher_1776127487505_4925@example.com",
+      "phone": "+54 9 341 7661 5926",
+      "description": "Profesor/a con experiencia en Historia, Inglés. Contacto: +54 9 341 7661 5926",
+      "curriculum": "Clases personalizadas con ejercicios y seguimiento",
+      "photo": "/assets/uploads/hombres/20.jpeg",
+      "classSize": 5,
+      "subjects": [
+        "Historia",
+        "Inglés"
+      ],
+      "modality": "presencial",
+      "modalities": [
+        "presencial"
+      ],
+      "schedules": "Mar/Jue 10:00-12:00",
+      "location": "CABA - Centro",
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 34
+    },
+    {
+      "id": 21,
+      "firstName": "Mateo",
+      "lastName": "Rodríguez",
+      "age": 36,
+      "email": "teacher_1776127487516_2007@example.com",
+      "phone": "+54 9 351 6530 1610",
+      "description": "Profesor/a con experiencia en Historia, Lengua, Inglés. Contacto: +54 9 351 6530 1610",
+      "curriculum": "Programa estructurado de teoría y práctica",
+      "photo": "/assets/uploads/hombres/21.jpeg",
+      "classSize": 4,
+      "subjects": [
+        "Historia",
+        "Lengua",
+        "Inglés"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual"
+      ],
+      "schedules": "Lun/Mié/Vie 18:00-20:00",
+      "location": null,
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 37
+    },
+    {
+      "id": 22,
+      "firstName": "María",
+      "lastName": "Fernández",
+      "age": 37,
+      "email": "teacher_1776127487525_4957@example.com",
+      "phone": "+54 9 11 7145 5831",
+      "description": "Profesor/a con experiencia en Lengua, Inglés, Física. Contacto: +54 9 11 7145 5831",
+      "curriculum": "Temario orientado a resolución de problemas y exámenes",
+      "photo": "/assets/uploads/hombres/22.jpeg",
+      "classSize": 2,
+      "subjects": [
+        "Lengua",
+        "Inglés",
+        "Física"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual"
+      ],
+      "schedules": "Flexible - consultar disponibilidad",
+      "location": null,
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 23
+    },
+    {
+      "id": 23,
+      "firstName": "Lucas",
+      "lastName": "Rojas",
+      "age": 33,
+      "email": "teacher_1776127487533_9588@example.com",
+      "phone": "+54 9 297 3032 3081",
+      "description": "Profesor/a con experiencia en Química, Programación, Historia. Contacto: +54 9 297 3032 3081",
+      "curriculum": "Clases personalizadas con ejercicios y seguimiento",
+      "photo": "/assets/uploads/hombres/23.jpeg",
+      "classSize": 4,
+      "subjects": [
+        "Química",
+        "Programación",
+        "Historia"
+      ],
+      "modality": "presencial",
+      "modalities": [
+        "presencial"
+      ],
+      "schedules": "Mar/Jue 10:00-12:00",
+      "location": "CABA - Centro",
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 50
+    },
+    {
+      "id": 24,
+      "firstName": "Camila",
+      "lastName": "Pérez",
+      "age": 31,
+      "email": "teacher_1776127487541_2665@example.com",
+      "phone": "+54 9 351 9548 1768",
+      "description": "Profesor/a con experiencia en Química, Programación, Física, Inglés. Contacto: +54 9 351 9548 1768",
+      "curriculum": "Enfoque práctico con proyectos y evaluación continua",
+      "photo": "/assets/uploads/hombres/24.jpeg",
+      "classSize": 4,
+      "subjects": [
+        "Química",
+        "Programación",
+        "Física",
+        "Inglés"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual"
+      ],
+      "schedules": "Lun/Mié/Vie 18:00-20:00",
+      "location": null,
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 4
+    },
+    {
+      "id": 25,
+      "firstName": "Camila",
+      "lastName": "Pérez",
+      "age": 33,
+      "email": "teacher_1776127487550_4188@example.com",
+      "phone": "+54 9 297 2468 6826",
+      "description": "Profesor/a con experiencia en Matemática, Historia, Física, Química. Contacto: +54 9 297 2468 6826",
+      "curriculum": "Clases personalizadas con ejercicios y seguimiento",
+      "photo": "/assets/uploads/hombres/25.jpeg",
+      "classSize": 5,
+      "subjects": [
+        "Matemática",
+        "Historia",
+        "Física",
+        "Química"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual"
+      ],
+      "schedules": "Mar/Jue 10:00-12:00",
+      "location": null,
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 48
+    },
+    {
+      "id": 26,
+      "firstName": "Lucas",
+      "lastName": "García",
+      "age": 42,
+      "email": "teacher_1776127487559_2379@example.com",
+      "phone": "+54 9 221 4244 2013",
+      "description": "Profesor/a con experiencia en Lengua, Física, Química. Contacto: +54 9 221 4244 2013",
+      "curriculum": "Programa estructurado de teoría y práctica",
+      "photo": "/assets/uploads/hombres/26.jpeg",
+      "classSize": 1,
+      "subjects": [
+        "Lengua",
+        "Física",
+        "Química"
+      ],
+      "modality": "presencial",
+      "modalities": [
+        "presencial"
+      ],
+      "schedules": "Lun/Mié/Vie 18:00-20:00",
+      "location": "CABA - Norte",
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 1
+    },
+    {
+      "id": 27,
+      "firstName": "Ana",
+      "lastName": "Pérez",
+      "age": 29,
+      "email": "teacher_1776127487568_6053@example.com",
+      "phone": "+54 9 297 5320 9267",
+      "description": "Profesor/a con experiencia en Física, Inglés, Lengua, Historia. Contacto: +54 9 297 5320 9267",
+      "curriculum": "Programa estructurado de teoría y práctica",
+      "photo": "/assets/uploads/hombres/27.jpeg",
+      "classSize": 3,
+      "subjects": [
+        "Física",
+        "Inglés",
+        "Lengua",
+        "Historia"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual"
+      ],
+      "schedules": "Flexible - consultar disponibilidad",
+      "location": null,
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 35
+    },
+    {
+      "id": 28,
+      "firstName": "Paula",
+      "lastName": "Santos",
+      "age": 35,
+      "email": "teacher_1776127487576_8277@example.com",
+      "phone": "+54 9 351 7083 1225",
+      "description": "Profesor/a con experiencia en Química, Lengua, Matemática. Contacto: +54 9 351 7083 1225",
+      "curriculum": "Programa estructurado de teoría y práctica",
+      "photo": "/assets/uploads/hombres/28.jpeg",
+      "classSize": 2,
+      "subjects": [
+        "Química",
+        "Lengua",
+        "Matemática"
+      ],
+      "modality": "presencial",
+      "modalities": [
+        "presencial"
+      ],
+      "schedules": "Flexible - consultar disponibilidad",
+      "location": "CABA - Centro",
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 29
+    },
+    {
+      "id": 29,
+      "firstName": "Lucía",
+      "lastName": "Gómez",
+      "age": 39,
+      "email": "teacher_1776127487587_3734@example.com",
+      "phone": "+54 9 341 8054 4177",
+      "description": "Profesor/a con experiencia en Química, Inglés, Física. Contacto: +54 9 341 8054 4177",
+      "curriculum": "Temario orientado a resolución de problemas y exámenes",
+      "photo": "/assets/uploads/hombres/29.jpeg",
+      "classSize": 5,
+      "subjects": [
+        "Química",
+        "Inglés",
+        "Física"
+      ],
+      "modality": "presencial",
+      "modalities": [
+        "presencial"
+      ],
+      "schedules": "Lun/Mié/Vie 18:00-20:00",
+      "location": "La Plata",
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 16
+    },
+    {
+      "id": 30,
+      "firstName": "Ana",
+      "lastName": "Rodríguez",
+      "age": 56,
+      "email": "teacher_1776127487596_3036@example.com",
+      "phone": "+54 9 341 9591 4738",
+      "description": "Profesor/a con experiencia en Lengua, Química. Contacto: +54 9 341 9591 4738",
+      "curriculum": "Programa estructurado de teoría y práctica",
+      "photo": "/assets/uploads/mujeres/30.jpeg",
+      "classSize": 2,
+      "subjects": [
+        "Lengua",
+        "Química"
+      ],
+      "modality": "presencial",
+      "modalities": [
+        "presencial"
+      ],
+      "schedules": "Flexible - consultar disponibilidad",
+      "location": "CABA - Norte",
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 50
+    },
+    {
+      "id": 31,
+      "firstName": "Paula",
+      "lastName": "López",
+      "age": 56,
+      "email": "teacher_1776127487604_1799@example.com",
+      "phone": "+54 9 297 8431 6106",
+      "description": "Profesor/a con experiencia en Historia, Inglés, Física, Química. Contacto: +54 9 297 8431 6106",
+      "curriculum": "Clases personalizadas con ejercicios y seguimiento",
+      "photo": "/assets/uploads/mujeres/31.jpeg",
+      "classSize": 3,
+      "subjects": [
+        "Historia",
+        "Inglés",
+        "Física",
+        "Química"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual"
+      ],
+      "schedules": "Mar/Jue 10:00-12:00",
+      "location": null,
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 33
+    },
+    {
+      "id": 32,
+      "firstName": "Santiago",
+      "lastName": "Rodríguez",
+      "age": 38,
+      "email": "teacher_1776127487614_4867@example.com",
+      "phone": "+54 9 221 5819 3489",
+      "description": "Profesor/a con experiencia en Inglés, Física. Contacto: +54 9 221 5819 3489",
+      "curriculum": "Programa estructurado de teoría y práctica",
+      "photo": "/assets/uploads/mujeres/32.jpeg",
+      "classSize": 3,
+      "subjects": [
+        "Inglés",
+        "Física"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual",
+        "presencial"
+      ],
+      "schedules": "Lun/Mié/Vie 18:00-20:00",
+      "location": "Gran Buenos Aires",
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 15
+    },
+    {
+      "id": 33,
+      "firstName": "Sofía",
+      "lastName": "López",
+      "age": 31,
+      "email": "teacher_1776127487624_3721@example.com",
+      "phone": "+54 9 297 3505 8098",
+      "description": "Profesor/a con experiencia en Física, Química, Inglés. Contacto: +54 9 297 3505 8098",
+      "curriculum": "Clases personalizadas con ejercicios y seguimiento",
+      "photo": "/assets/uploads/mujeres/33.jpeg",
+      "classSize": 2,
+      "subjects": [
+        "Física",
+        "Química",
+        "Inglés"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual"
+      ],
+      "schedules": "Lun/Mié/Vie 18:00-20:00",
+      "location": null,
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 16
+    },
+    {
+      "id": 34,
+      "firstName": "Diego",
+      "lastName": "Santos",
+      "age": 34,
+      "email": "teacher_1776127487633_7192@example.com",
+      "phone": "+54 9 11 1137 9190",
+      "description": "Profesor/a con experiencia en Lengua, Inglés. Contacto: +54 9 11 1137 9190",
+      "curriculum": "Clases personalizadas con ejercicios y seguimiento",
+      "photo": "/assets/uploads/mujeres/34.jpeg",
+      "classSize": 5,
+      "subjects": [
+        "Lengua",
+        "Inglés"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual"
+      ],
+      "schedules": "Lun/Mié/Vie 18:00-20:00",
+      "location": null,
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 19
+    },
+    {
+      "id": 35,
+      "firstName": "Valentina",
+      "lastName": "Gómez",
+      "age": 57,
+      "email": "teacher_1776127487642_9427@example.com",
+      "phone": "+54 9 297 2899 9508",
+      "description": "Profesor/a con experiencia en Historia, Matemática, Programación, Física. Contacto: +54 9 297 2899 9508",
+      "curriculum": "Programa estructurado de teoría y práctica",
+      "photo": "/assets/uploads/mujeres/35.jpeg",
+      "classSize": 4,
+      "subjects": [
+        "Historia",
+        "Matemática",
+        "Programación",
+        "Física"
+      ],
+      "modality": "presencial",
+      "modalities": [
+        "presencial"
+      ],
+      "schedules": "Flexible - consultar disponibilidad",
+      "location": "CABA - Norte",
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 39
+    },
+    {
+      "id": 36,
+      "firstName": "Diego",
+      "lastName": "Fernández",
+      "age": 60,
+      "email": "teacher_1776127487648_1238@example.com",
+      "phone": "+54 9 221 2302 8678",
+      "description": "Profesor/a con experiencia en Historia, Inglés, Programación. Contacto: +54 9 221 2302 8678",
+      "curriculum": "Enfoque práctico con proyectos y evaluación continua",
+      "photo": "/assets/uploads/mujeres/36.jpeg",
+      "classSize": 5,
+      "subjects": [
+        "Historia",
+        "Inglés",
+        "Programación"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual",
+        "presencial"
+      ],
+      "schedules": "Mar/Jue 10:00-12:00",
+      "location": "CABA - Norte",
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 41
+    },
+    {
+      "id": 37,
+      "firstName": "Alex",
+      "lastName": "Fernández",
+      "age": 35,
+      "email": "teacher_1776127487656_3881@example.com",
+      "phone": "+54 9 11 5741 1462",
+      "description": "Profesor/a con experiencia en Matemática, Historia, Inglés, Física. Contacto: +54 9 11 5741 1462",
+      "curriculum": "Clases personalizadas con ejercicios y seguimiento",
+      "photo": "/assets/uploads/mujeres/37.jpeg",
+      "classSize": 4,
+      "subjects": [
+        "Matemática",
+        "Historia",
+        "Inglés",
+        "Física"
+      ],
+      "modality": "presencial",
+      "modalities": [
+        "presencial"
+      ],
+      "schedules": "Lun/Mié/Vie 18:00-20:00",
+      "location": "Gran Buenos Aires",
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 32
+    },
+    {
+      "id": 38,
+      "firstName": "Camila",
+      "lastName": "Santos",
+      "age": 46,
+      "email": "teacher_1776127487665_5075@example.com",
+      "phone": "+54 9 351 4945 2747",
+      "description": "Profesor/a con experiencia en Programación, Lengua, Física, Historia. Contacto: +54 9 351 4945 2747",
+      "curriculum": "Programa estructurado de teoría y práctica",
+      "photo": "/assets/uploads/mujeres/38.jpeg",
+      "classSize": 1,
+      "subjects": [
+        "Programación",
+        "Lengua",
+        "Física",
+        "Historia"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual"
+      ],
+      "schedules": "Sábados 09:00-12:00",
+      "location": null,
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 35
+    },
+    {
+      "id": 39,
+      "firstName": "Paula",
+      "lastName": "López",
+      "age": 45,
+      "email": "teacher_1776127487672_2997@example.com",
+      "phone": "+54 9 297 7471 5646",
+      "description": "Profesor/a con experiencia en Química, Inglés, Historia. Contacto: +54 9 297 7471 5646",
+      "curriculum": "Clases personalizadas con ejercicios y seguimiento",
+      "photo": "/assets/uploads/mujeres/39.jpeg",
+      "classSize": 4,
+      "subjects": [
+        "Química",
+        "Inglés",
+        "Historia"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual"
+      ],
+      "schedules": "Flexible - consultar disponibilidad",
+      "location": null,
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 50
+    },
+    {
+      "id": 40,
+      "firstName": "Ana",
+      "lastName": "García",
+      "age": 28,
+      "email": "teacher_1776127487683_2361@example.com",
+      "phone": "+54 9 297 7456 6452",
+      "description": "Profesor/a con experiencia en Física, Química. Contacto: +54 9 297 7456 6452",
+      "curriculum": "Temario orientado a resolución de problemas y exámenes",
+      "photo": "/assets/uploads/mujeres/40.jpeg",
+      "classSize": 1,
+      "subjects": [
+        "Física",
+        "Química"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual"
+      ],
+      "schedules": "Mar/Jue 10:00-12:00",
+      "location": null,
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 17
+    },
+    {
+      "id": 41,
+      "firstName": "Lucía",
+      "lastName": "Gómez",
+      "age": 60,
+      "email": "teacher_1776127487690_9330@example.com",
+      "phone": "+54 9 351 1194 2923",
+      "description": "Profesor/a con experiencia en Lengua, Inglés. Contacto: +54 9 351 1194 2923",
+      "curriculum": "Enfoque práctico con proyectos y evaluación continua",
+      "photo": "/assets/uploads/mujeres/41.jpeg",
+      "classSize": 5,
+      "subjects": [
+        "Lengua",
+        "Inglés"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual"
+      ],
+      "schedules": "Mar/Jue 10:00-12:00",
+      "location": null,
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 15
+    },
+    {
+      "id": 42,
+      "firstName": "Santiago",
+      "lastName": "Rodríguez",
+      "age": 51,
+      "email": "teacher_1776127487696_3582@example.com",
+      "phone": "+54 9 341 1761 6238",
+      "description": "Profesor/a con experiencia en Inglés, Lengua, Química, Matemática. Contacto: +54 9 341 1761 6238",
+      "curriculum": "Clases personalizadas con ejercicios y seguimiento",
+      "photo": "/assets/uploads/mujeres/42.jpeg",
+      "classSize": 2,
+      "subjects": [
+        "Inglés",
+        "Lengua",
+        "Química",
+        "Matemática"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual",
+        "presencial"
+      ],
+      "schedules": "Mar/Jue 10:00-12:00",
+      "location": "CABA - Norte",
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 2
+    },
+    {
+      "id": 43,
+      "firstName": "Camila",
+      "lastName": "López",
+      "age": 41,
+      "email": "teacher_1776127487704_7095@example.com",
+      "phone": "+54 9 341 8921 9095",
+      "description": "Profesor/a con experiencia en Programación, Lengua. Contacto: +54 9 341 8921 9095",
+      "curriculum": "Enfoque práctico con proyectos y evaluación continua",
+      "photo": "/assets/uploads/mujeres/43.jpeg",
+      "classSize": 1,
+      "subjects": [
+        "Programación",
+        "Lengua"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual"
+      ],
+      "schedules": "Sábados 09:00-12:00",
+      "location": null,
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 6
+    },
+    {
+      "id": 44,
+      "firstName": "Paula",
+      "lastName": "Fernández",
+      "age": 58,
+      "email": "teacher_1776127487713_2712@example.com",
+      "phone": "+54 9 11 9520 1447",
+      "description": "Profesor/a con experiencia en Lengua, Programación, Matemática, Historia. Contacto: +54 9 11 9520 1447",
+      "curriculum": "Programa estructurado de teoría y práctica",
+      "photo": "/assets/uploads/mujeres/44.jpeg",
+      "classSize": 4,
+      "subjects": [
+        "Lengua",
+        "Programación",
+        "Matemática",
+        "Historia"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual"
+      ],
+      "schedules": "Flexible - consultar disponibilidad",
+      "location": null,
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 25
+    },
+    {
+      "id": 45,
+      "firstName": "Camila",
+      "lastName": "Gómez",
+      "age": 25,
+      "email": "teacher_1776127487722_1709@example.com",
+      "phone": "+54 9 341 1507 1280",
+      "description": "Profesor/a con experiencia en Historia, Matemática, Lengua, Química. Contacto: +54 9 341 1507 1280",
+      "curriculum": "Temario orientado a resolución de problemas y exámenes",
+      "photo": "/assets/uploads/mujeres/45.jpeg",
+      "classSize": 5,
+      "subjects": [
+        "Historia",
+        "Matemática",
+        "Lengua",
+        "Química"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual",
+        "presencial"
+      ],
+      "schedules": "Flexible - consultar disponibilidad",
+      "location": "La Plata",
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 31
+    },
+    {
+      "id": 46,
+      "firstName": "Martín",
+      "lastName": "Pérez",
+      "age": 40,
+      "email": "teacher_1776127487729_2464@example.com",
+      "phone": "+54 9 297 1766 1191",
+      "description": "Profesor/a con experiencia en Matemática, Historia. Contacto: +54 9 297 1766 1191",
+      "curriculum": "Clases personalizadas con ejercicios y seguimiento",
+      "photo": "/assets/uploads/mujeres/46.jpeg",
+      "classSize": 5,
+      "subjects": [
+        "Matemática",
+        "Historia"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual",
+        "presencial"
+      ],
+      "schedules": "Sábados 09:00-12:00",
+      "location": "CABA - Norte",
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 34
+    },
+    {
+      "id": 47,
+      "firstName": "Mateo",
+      "lastName": "Pérez",
+      "age": 57,
+      "email": "teacher_1776127487738_7669@example.com",
+      "phone": "+54 9 341 9690 5332",
+      "description": "Profesor/a con experiencia en Química, Física, Matemática, Lengua. Contacto: +54 9 341 9690 5332",
+      "curriculum": "Enfoque práctico con proyectos y evaluación continua",
+      "photo": "/assets/uploads/mujeres/47.jpeg",
+      "classSize": 1,
+      "subjects": [
+        "Química",
+        "Física",
+        "Matemática",
+        "Lengua"
+      ],
+      "modality": "virtual",
+      "modalities": [
+        "virtual",
+        "presencial"
+      ],
+      "schedules": "Flexible - consultar disponibilidad",
+      "location": "CABA - Centro",
+      "createdAt": "2026-04-14 00:44:47",
+      "updatedAt": "2026-04-14 00:44:47",
+      "views": 23
+    }
+  ]
+}
