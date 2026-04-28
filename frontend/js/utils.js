@@ -13,17 +13,34 @@ async function httpRequest(method, url, data = null) {
     }
   };
 
+  // Agregar token si existe en localStorage
+  try {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      options.headers['Authorization'] = `Bearer ${token}`;
+    }
+  } catch (e) {
+    // localStorage puede no estar disponible en algunos contextos
+  }
+
   if (data) {
     options.body = JSON.stringify(data);
   }
 
   const response = await fetch(url, options);
-  const result = await response.json();
+  const text = await response.text();
+  let result;
+  try {
+    result = text ? JSON.parse(text) : {};
+  } catch (e) {
+    result = { raw: text };
+  }
 
   if (!response.ok) {
-    const error = new Error(result.message || 'Error en la solicitud');
-    // Adjuntar detalles de validación si vienen del servidor
-    error.details = result.errors || result.details || null;
+    const message = (result && result.message) ? result.message : (text || 'Error en la solicitud');
+    const error = new Error(message);
+    // Adjuntar todo el resultado parseado para decisiones en UI
+    error.details = result;
     throw error;
   }
 
@@ -130,6 +147,18 @@ function validatePhone(phone) {
   // Validar: mínimo 7 caracteres numéricos, puede incluir espacios, guiones, +, paréntesis
   const regex = /^[\d\s\-\+\(\)]{7,}$/;
   return regex.test(phone);
+}
+
+/**
+ * Verificar seguridad de contraseña (cliente)
+ * Devuelve un array de mensajes de error (vacío si es segura)
+ */
+function checkPasswordStrength(password) {
+  const errors = [];
+  if (typeof password !== 'string' || password.length < 8) errors.push('La contraseña debe tener al menos 8 caracteres');
+  if (!/[A-Za-z]/.test(password)) errors.push('La contraseña debe incluir al menos una letra');
+  if (!/[0-9]/.test(password)) errors.push('La contraseña debe incluir al menos un número');
+  return errors;
 }
 
 /**

@@ -10,6 +10,8 @@ class EstudiusApp {
     this.allTeachers = [];
     this.currentTeacher = null;
     this.currentDisplayedTeachers = [];
+    this.currentUser = null; // objeto del usuario autenticado
+    this.authToken = null;   // token JWT
     
     // Estado de filtros
     this.filters = {
@@ -20,11 +22,458 @@ class EstudiusApp {
     this.init();
   }
 
-  init() {
+  async init() {
     console.log('Inicializando Estudius');
+    await this.loadAuthState();
     this.setupEventListeners();
     this.renderPage();
     this.loadTeachers();
+  }
+
+  async loadAuthState() {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        this.currentUser = null;
+        this.authToken = null;
+        this.updateHeaderAuthUI();
+        return;
+      }
+
+      try {
+        const resp = await AuthAPI.me(token);
+        if (resp && resp.success && resp.user) {
+          this.currentUser = resp.user;
+          this.authToken = token;
+        } else {
+          localStorage.removeItem('authToken');
+          this.currentUser = null;
+          this.authToken = null;
+        }
+      } catch (err) {
+        console.error('Error validando token:', err);
+        localStorage.removeItem('authToken');
+        this.currentUser = null;
+        this.authToken = null;
+      }
+    } finally {
+      this.updateHeaderAuthUI();
+    }
+  }
+
+  updateHeaderAuthUI() {
+    const headerRight = document.querySelector('.header-right');
+    if (!headerRight) return;
+
+    if (this.currentUser) {
+      const initial = (this.currentUser.firstName || 'U').charAt(0).toUpperCase();
+      headerRight.innerHTML = `
+        <div class="profile-wrapper">
+          <div id="profileBubble" class="profile-bubble">${initial}</div>
+          <div id="profileMenu" class="profile-menu" style="display:none;">
+            <div style="padding: 8px 12px; font-weight: 700;">${this.currentUser.firstName} ${this.currentUser.lastName}</div>
+            <div style="padding: 4px 12px; font-size: 0.85rem; color: #666;">${this.currentUser.email}</div>
+            <div style="padding: 8px 12px; display:flex; gap:8px; flex-direction:column;">
+              <button id="changePwBtn" class="btn btn-link" style="text-align:left;">Cambiar contraseña</button>
+              <button id="logoutBtn" class="btn btn-link" style="text-align:left;">Cerrar sesión</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const bubble = document.getElementById('profileBubble');
+      const menu = document.getElementById('profileMenu');
+      if (bubble && menu) {
+        // Escoger color aleatorio de la paleta definida en :root (evitar blanco / negro)
+        try {
+          const paletteVars = ['--color-primary', '--color-secondary', '--isotipo-dark', '--isotipo-darker', '--isotipo-accent', '--color-success', '--color-warning', '--color-error', '--color-info'];
+          const pick = paletteVars[Math.floor(Math.random() * paletteVars.length)];
+          const computed = getComputedStyle(document.documentElement).getPropertyValue(pick).trim() || '#587D71';
+          bubble.style.backgroundColor = computed;
+        } catch (e) {
+          bubble.style.backgroundColor = '#587D71';
+        }
+
+        bubble.onclick = (e) => {
+          menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+        };
+      }
+
+      const logoutBtn = document.getElementById('logoutBtn');
+      const changePwBtn = document.getElementById('changePwBtn');
+      if (changePwBtn) { changePwBtn.addEventListener('click', () => this.showChangePasswordModal()); }
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => this.logout());
+      }
+    } else {
+      headerRight.innerHTML = `
+        <button class="btn-header btn-signin">Iniciar sesión</button>
+        <button class="btn-header btn-signup">Registrarse</button>
+      `;
+
+      const signin = headerRight.querySelector('.btn-signin');
+      const signup = headerRight.querySelector('.btn-signup');
+      if (signin) signin.addEventListener('click', () => this.showAuthModal('login'));
+      if (signup) signup.addEventListener('click', () => this.showAuthModal('register'));
+    }
+
+    // Mostrar/ocultar opción de "Agregar Profesor" según rol
+    try {
+      const addNav = document.querySelector('[data-page="add-teacher"]');
+      if (addNav) {
+        addNav.style.display = (this.currentUser && this.currentUser.role === 'admin') ? '' : 'none';
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  showAuthModal(mode = 'login', opts = {}) {
+    // mode: 'login' | 'register'
+    this.closeAuthModal();
+    const overlay = document.createElement('div');
+    overlay.id = 'authModal';
+    overlay.style.position = 'fixed';
+    overlay.style.left = '0';
+    overlay.style.top = '0';
+    overlay.style.right = '0';
+    overlay.style.bottom = '0';
+    overlay.style.background = 'rgba(0,0,0,0.5)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '9999';
+
+    const formHtml = mode === 'register' ? `
+      <h2>Registrarse</h2>
+      <form id="authForm">
+        <div class="form-group required"><label>Nombre</label><input name="firstName" required /></div>
+        <div class="form-group required"><label>Apellido</label><input name="lastName" required /></div>
+        <div class="form-group required"><label>Email</label><input name="email" type="email" required /></div>
+        <div class="form-group required"><label>Contraseña</label><input name="password" type="password" required /></div>
+        <div class="form-group required"><label>Confirmar contraseña</label><input name="confirmPassword" type="password" required /></div>
+        <div style="display:flex; gap:8px; margin-top:12px;"><button type="submit" class="btn btn-primary">Crear cuenta</button><button type="button" id="cancelAuthBtn" class="btn btn-outline">Cancelar</button></div>
+        <div id="authErrors" style="margin-top:12px; color: #b00020;"></div>
+      </form>
+    ` : `
+      <h2>Iniciar sesión</h2>
+      <form id="authForm">
+        <div class="form-group required"><label>Email</label><input name="email" type="email" required /></div>
+        <div class="form-group required"><label>Contraseña</label><input name="password" type="password" required /></div>
+        <div style="display:flex; gap:8px; margin-top:12px;"><button type="submit" class="btn btn-primary">Iniciar sesión</button><button type="button" id="cancelAuthBtn" class="btn btn-outline">Cancelar</button></div>
+        <div id="authErrors" style="margin-top:12px; color: #b00020;"></div>
+      </form>
+    `;
+
+    const container = document.createElement('div');
+    container.style.background = 'white';
+    container.style.padding = '20px';
+    container.style.borderRadius = '12px';
+    container.style.width = '420px';
+    container.innerHTML = formHtml;
+
+    overlay.appendChild(container);
+    document.body.appendChild(overlay);
+
+    const form = document.getElementById('authForm');
+    const cancelBtn = document.getElementById('cancelAuthBtn');
+    if (cancelBtn) cancelBtn.addEventListener('click', () => this.closeAuthModal());
+
+    // Prefill email if provided in opts
+    try {
+      if (opts && opts.email) {
+        const emailField = form.querySelector('input[name="email"]');
+        if (emailField) emailField.value = opts.email;
+      }
+    } catch (e) { /* ignore */ }
+
+    // Add password visibility toggles for any password inputs in the auth form
+    try {
+      const pwInputs = form.querySelectorAll('input[type="password"]');
+      pwInputs.forEach((input, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'toggle-password';
+        btn.textContent = 'Mostrar';
+        btn.addEventListener('click', () => {
+          if (input.type === 'password') {
+            input.type = 'text';
+            btn.textContent = 'Ocultar';
+          } else {
+            input.type = 'password';
+            btn.textContent = 'Mostrar';
+          }
+        });
+
+        // Insert the button after the input
+        input.parentNode && input.parentNode.appendChild(btn);
+      });
+    } catch (e) { /* ignore */ }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(form).entries());
+      const errorsEl = document.getElementById('authErrors');
+      errorsEl.textContent = '';
+
+      try {
+        if (mode === 'register') {
+          // Validaciones cliente
+          if (!data.firstName || !data.lastName || !data.email || !data.password || !data.confirmPassword) {
+            errorsEl.textContent = 'Todos los campos son obligatorios';
+            return;
+          }
+          if (!validateEmail(data.email)) { errorsEl.textContent = 'Email inválido'; return; }
+          if (data.password !== data.confirmPassword) { errorsEl.textContent = 'Las contraseñas no coinciden'; return; }
+          const pwErrors = checkPasswordStrength(data.password);
+          if (pwErrors.length > 0) { errorsEl.innerHTML = pwErrors.join('<br/>'); return; }
+
+          const resp = await AuthAPI.register({ firstName: data.firstName, lastName: data.lastName, email: data.email, password: data.password });
+          if (resp && resp.success) {
+            this.setAuth(resp.token, resp.user);
+            this.closeAuthModal();
+            showAlert('Registro exitoso', 'success');
+            // Recargar la página para reflejar el estado de sesión
+            location.reload();
+          }
+        } else {
+          if (!data.email || !data.password) { errorsEl.textContent = 'Email y contraseña son requeridos'; return; }
+          const resp = await AuthAPI.login({ email: data.email, password: data.password });
+          if (resp && resp.success) {
+            this.setAuth(resp.token, resp.user);
+            this.closeAuthModal();
+            showAlert('Sesión iniciada', 'success');
+            // Recargar la página para reflejar el estado de sesión
+            location.reload();
+          }
+        }
+      } catch (err) {
+        console.error('Auth error:', err, err && err.details);
+        // Special handling: login -> email not registered => suggest register
+        if (mode === 'login') {
+          if (err && err.details && err.details.notRegistered) {
+            errorsEl.innerHTML = 'No existe una cuenta con ese email. <button id="gotoRegisterBtn" class="btn btn-link">Registrarse</button>';
+            const btn = document.getElementById('gotoRegisterBtn');
+            if (btn) btn.addEventListener('click', () => {
+              this.closeAuthModal();
+              setTimeout(() => this.showAuthModal('register', { email: data.email }), 120);
+            });
+            return;
+          }
+          // otherwise generic login error
+          errorsEl.textContent = err && err.message ? err.message : 'Error en la operación de autenticación';
+          return;
+        }
+
+        // Special handling: register -> email already exists => redirect to login with same email
+        if (mode === 'register') {
+          if (err && err.details && err.details.emailExists) {
+            this.closeAuthModal();
+            showAlert('Ya existe una cuenta con ese email. Redirigiendo a iniciar sesión', 'info');
+            setTimeout(() => this.showAuthModal('login', { email: data.email }), 200);
+            return;
+          }
+          // If server returned array of validation errors
+          if (err && err.details && Array.isArray(err.details.errors) && err.details.errors.length) {
+            errorsEl.innerHTML = err.details.errors.join('<br/>');
+            return;
+          }
+        }
+
+        // Fallback
+        if (err && err.message) errorsEl.textContent = err.message;
+        else errorsEl.textContent = 'Error en la operación de autenticación';
+      }
+    });
+  }
+
+  closeAuthModal() {
+    const existing = document.getElementById('authModal');
+    if (existing) existing.remove();
+  }
+
+  setAuth(token, user) {
+    try {
+      localStorage.setItem('authToken', token);
+    } catch (e) { console.warn('No se pudo guardar token en localStorage'); }
+    this.authToken = token;
+    this.currentUser = user;
+    this.updateHeaderAuthUI();
+    // Limpiar mensaje inline de reserva si existe
+    try {
+      const bookErr = document.getElementById('bookError');
+      if (bookErr) { bookErr.textContent = ''; bookErr.style.visibility = 'hidden'; }
+    } catch (e) { /* ignore */ }
+  }
+
+  logout() {
+    localStorage.removeItem('authToken');
+    this.authToken = null;
+    this.currentUser = null;
+    this.updateHeaderAuthUI();
+    showAlert('Sesión cerrada', 'info');
+    // Recargar la página para reflejar el cierre de sesión
+    location.reload();
+  }
+
+  showScheduleModal(teacher) {
+    this.closeScheduleModal();
+    const overlay = document.createElement('div');
+    overlay.id = 'scheduleModal';
+    overlay.style.position = 'fixed';
+    overlay.style.left = '0';
+    overlay.style.top = '0';
+    overlay.style.right = '0';
+    overlay.style.bottom = '0';
+    overlay.style.background = 'rgba(0,0,0,0.5)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '9999';
+
+    const container = document.createElement('div');
+    container.style.background = 'white';
+    container.style.padding = '20px';
+    container.style.borderRadius = '12px';
+    container.style.width = '480px';
+    container.innerHTML = `
+      <h3>Agendar clase con ${teacher.firstName} ${teacher.lastName}</h3>
+      <form id="scheduleForm">
+        <div class="form-group required"><label>Fecha y hora</label><input name="datetime" type="datetime-local" required /></div>
+        <div class="form-group"><label>Mensaje (opcional)</label><textarea name="message" rows="3"></textarea></div>
+        <div style="display:flex; gap:8px; margin-top:12px;"><button type="submit" class="btn btn-primary">Reservar</button><button type="button" id="cancelScheduleBtn" class="btn btn-outline">Cancelar</button></div>
+        <div id="scheduleErrors" style="margin-top:12px; color: #b00020;"></div>
+      </form>
+    `;
+
+    overlay.appendChild(container);
+    document.body.appendChild(overlay);
+
+    const form = document.getElementById('scheduleForm');
+    const cancelBtn = document.getElementById('cancelScheduleBtn');
+    if (cancelBtn) cancelBtn.addEventListener('click', () => this.closeScheduleModal());
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(form).entries());
+      const errorsEl = document.getElementById('scheduleErrors');
+      errorsEl.textContent = '';
+
+      if (!data.datetime) { errorsEl.textContent = 'Selecciona fecha y hora'; return; }
+
+      try {
+        await this.handleCreateBooking(teacher.id, data.datetime, data.message);
+        this.closeScheduleModal();
+        showAlert('Clase agendada correctamente', 'success');
+      } catch (err) {
+        console.error('Error reservando:', err);
+        errorsEl.textContent = err.message || 'Error al crear reserva';
+      }
+    });
+  }
+
+  closeScheduleModal() {
+    const existing = document.getElementById('scheduleModal');
+    if (existing) existing.remove();
+  }
+
+  showChangePasswordModal() {
+    this.closeChangePasswordModal();
+    const overlay = document.createElement('div');
+    overlay.id = 'changePwModal';
+    overlay.style.position = 'fixed';
+    overlay.style.left = '0';
+    overlay.style.top = '0';
+    overlay.style.right = '0';
+    overlay.style.bottom = '0';
+    overlay.style.background = 'rgba(0,0,0,0.5)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '9999';
+
+    const container = document.createElement('div');
+    container.style.background = 'white';
+    container.style.padding = '20px';
+    container.style.borderRadius = '12px';
+    container.style.width = '420px';
+    container.innerHTML = `
+      <h3>Cambiar contraseña</h3>
+      <form id="changePwForm">
+        <div class="form-group required"><label>Contraseña actual</label><input name="currentPassword" type="password" required /></div>
+        <div class="form-group required"><label>Nueva contraseña</label><input name="newPassword" type="password" required /></div>
+        <div class="form-group required"><label>Confirmar nueva contraseña</label><input name="confirmPassword" type="password" required /></div>
+        <div style="display:flex; gap:8px; margin-top:12px;"><button type="submit" class="btn btn-primary">Cambiar</button><button type="button" id="cancelChangePwBtn" class="btn btn-outline">Cancelar</button></div>
+        <div id="changePwErrors" style="margin-top:12px; color: #b00020;"></div>
+      </form>
+    `;
+
+    overlay.appendChild(container);
+    document.body.appendChild(overlay);
+
+    const form = document.getElementById('changePwForm');
+    const cancelBtn = document.getElementById('cancelChangePwBtn');
+    if (cancelBtn) cancelBtn.addEventListener('click', () => this.closeChangePasswordModal());
+
+    // Add toggle buttons for password inputs
+    try {
+      const pwInputs = form.querySelectorAll('input[type="password"]');
+      pwInputs.forEach((input) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'toggle-password';
+        btn.textContent = 'Mostrar';
+        btn.addEventListener('click', () => {
+          if (input.type === 'password') { input.type = 'text'; btn.textContent = 'Ocultar'; }
+          else { input.type = 'password'; btn.textContent = 'Mostrar'; }
+        });
+        input.parentNode && input.parentNode.appendChild(btn);
+      });
+    } catch (e) { /* ignore */ }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(form).entries());
+      const errorsEl = document.getElementById('changePwErrors');
+      errorsEl.textContent = '';
+
+      if (!data.currentPassword || !data.newPassword || !data.confirmPassword) { errorsEl.textContent = 'Todos los campos son obligatorios'; return; }
+      if (data.newPassword !== data.confirmPassword) { errorsEl.textContent = 'Las contraseñas nuevas no coinciden'; return; }
+      const pwErrors = checkPasswordStrength(data.newPassword);
+      if (pwErrors.length > 0) { errorsEl.innerHTML = pwErrors.join('<br/>'); return; }
+
+      try {
+        await AuthAPI.changePassword(this.authToken, { currentPassword: data.currentPassword, newPassword: data.newPassword });
+        showAlert('Contraseña cambiada correctamente', 'success');
+        this.closeChangePasswordModal();
+      } catch (err) {
+        console.error('Error cambiando contraseña:', err);
+        if (err && err.details && Array.isArray(err.details.errors) && err.details.errors.length) {
+          errorsEl.innerHTML = err.details.errors.join('<br/>');
+        } else if (err && err.message) {
+          errorsEl.textContent = err.message;
+        } else {
+          errorsEl.textContent = 'Error al cambiar contraseña';
+        }
+      }
+    });
+  }
+
+  closeChangePasswordModal() {
+    const existing = document.getElementById('changePwModal');
+    if (existing) existing.remove();
+  }
+
+  async handleCreateBooking(teacherId, datetime, message) {
+    if (!this.authToken) throw new Error('No autenticado');
+    const payload = { teacherId, datetime, message };
+    const res = await BookingAPI.createBooking(this.authToken, payload);
+    if (!res || !res.success) {
+      const msg = (res && res.message) ? res.message : 'No se pudo crear la reserva';
+      const error = new Error(msg);
+      throw error;
+    }
+    return res.bookingId;
   }
 
   setupEventListeners() {
@@ -39,7 +488,13 @@ class EstudiusApp {
     const listTeachersBtn = document.querySelector('[data-page="list-teachers"]');
 
     if (addTeacherBtn) {
-      addTeacherBtn.addEventListener('click', () => this.showPage('add-teacher'));
+      addTeacherBtn.addEventListener('click', () => {
+        if (!this.currentUser || this.currentUser.role !== 'admin') {
+          showAlert('Debes ser administrador para agregar profesores', 'error');
+          return;
+        }
+        this.showPage('add-teacher');
+      });
     }
 
     if (listTeachersBtn) {
@@ -48,6 +503,17 @@ class EstudiusApp {
 
     // Manejo de cambio de hash (URL)
     window.addEventListener('hashchange', () => this.handleRouteChange());
+
+    // Cerrar menú de perfil al hacer clic afuera
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('profileMenu');
+      const wrapper = document.querySelector('.profile-wrapper');
+      if (menu && wrapper) {
+        if (!e.target.closest('.profile-wrapper')) {
+          menu.style.display = 'none';
+        }
+      }
+    });
   }
 
   handleRouteChange() {
@@ -67,6 +533,14 @@ class EstudiusApp {
   }
 
   showPage(pageName) {
+    // Protecciones por página
+    if (pageName === 'add-teacher' && (!this.currentUser || this.currentUser.role !== 'admin')) {
+      showAlert('Debes ser administrador para acceder a esta sección', 'error');
+      this.currentPage = 'home';
+      this.renderPage();
+      return;
+    }
+
     this.currentPage = pageName;
     this.renderPage();
   }
@@ -160,6 +634,12 @@ class EstudiusApp {
     `;
 
     // Cargar profesores recomendados (traer todos y paginar aleatoriamente)
+    // Ocultar botón "Agregar un profesor" en la home si no es admin
+    try {
+      const addAnchor = main.querySelector('a[href="#add-teacher"]');
+      if (addAnchor) addAnchor.style.display = (this.currentUser && this.currentUser.role === 'admin') ? '' : 'none';
+    } catch (e) { /* ignore */ }
+
     await this.loadRecommendedTeachers();
 
     // Búsqueda dinámica (debounced)
@@ -1147,8 +1627,44 @@ class EstudiusApp {
     try {
       const result = await TeacherAPI.getTeacherById(teacherId);
       const teacher = result.data;
-
       const main = document.querySelector('main');
+
+      const isAdmin = this.currentUser && this.currentUser.role === 'admin';
+      const isUser = this.currentUser && this.currentUser.role === 'user';
+
+      const contactBlockHtml = isAdmin ? `
+          <div class="detail-note">
+            <strong>Información de contacto:</strong>
+            <div style="margin-top: var(--spacing-sm);">
+              <div class="detail-info-item">
+                <span class="detail-info-label">Email:</span>
+                <span class="detail-info-value">${teacher.email}</span>
+              </div>
+              ${teacher.phone ? `
+              <div class="detail-info-item">
+                <span class="detail-info-label">Teléfono:</span>
+                <span class="detail-info-value">${teacher.phone}</span>
+              </div>
+              ` : ''}
+            </div>
+          </div>
+      ` : ``; // No mostrar nada si no es admin
+
+      // Acción de la parte inferior: si es admin -> botones de admin; si es usuario o anónimo -> mostrar botón de agendar (anónimo verá error inline)
+      const adminActionsHtml = isAdmin ? `
+        <div class="detail-admin-actions" style="display: flex; gap: var(--spacing-lg); margin-top: var(--spacing-2xl); padding-top: var(--spacing-xl); border-top: 2px solid #e7e7e7;">
+          <button id="editTeacherBtn" class="btn btn-primary" style="flex: 1; padding: var(--spacing-md); background: #274580; color: white; border: none; border-radius: var(--border-radius); cursor: pointer; font-weight: 600; font-size: var(--font-size-sm);">Editar Profesor</button>
+          <button id="deleteTeacherBtn" class="btn btn-danger" style="flex: 1; padding: var(--spacing-md); background: #d9534f; color: white; border: none; border-radius: var(--border-radius); cursor: pointer; font-weight: 600; font-size: var(--font-size-sm);">Eliminar Profesor</button>
+        </div>
+      ` : `
+        <div style="display:flex; flex-direction: column; gap: var(--spacing-sm); margin-top: var(--spacing-2xl); padding-top: var(--spacing-xl); border-top: 2px solid #e7e7e7;">
+          <div id="bookError" class="inline-error" style="visibility: hidden;">&nbsp;</div>
+          <div>
+            <button id="bookClassBtn" class="btn btn-primary" style="width:100%; padding: var(--spacing-md); background: #2b8a3e; color: white; border: none; border-radius: var(--border-radius); cursor: pointer; font-weight: 600; font-size: var(--font-size-sm);">Agendar clase</button>
+          </div>
+        </div>
+      `;
+
       main.innerHTML = `
         <div class="detail-header">
           <div class="detail-header-left">
@@ -1172,21 +1688,7 @@ class EstudiusApp {
                   <span class="detail-info-label">Edad:</span>
                   <span class="detail-info-value">${teacher.age} años</span>
                 </div>
-                <div class="detail-note">
-                  <strong>Información de contacto (visible solo para administradores):</strong>
-                  <div style="margin-top: var(--spacing-sm);">
-                    <div class="detail-info-item">
-                      <span class="detail-info-label">Email:</span>
-                      <span class="detail-info-value">${teacher.email}</span>
-                    </div>
-                    ${teacher.phone ? `
-                    <div class="detail-info-item">
-                      <span class="detail-info-label">Teléfono:</span>
-                      <span class="detail-info-value">${teacher.phone}</span>
-                    </div>
-                    ` : ''}
-                  </div>
-                </div>
+                ${contactBlockHtml}
               </div>
 
               <div class="detail-info-section">
@@ -1225,33 +1727,34 @@ class EstudiusApp {
                 <p>${teacher.curriculum}</p>
               </div>
 
-              <div class="detail-admin-actions" style="display: flex; gap: var(--spacing-lg); margin-top: var(--spacing-2xl); padding-top: var(--spacing-xl); border-top: 2px solid #e7e7e7;">
-                <button id="editTeacherBtn" class="btn btn-primary" style="flex: 1; padding: var(--spacing-md); background: #274580; color: white; border: none; border-radius: var(--border-radius); cursor: pointer; font-weight: 600; font-size: var(--font-size-sm);">
-                  Editar Profesor
-                </button>
-                <button id="deleteTeacherBtn" class="btn btn-danger" style="flex: 1; padding: var(--spacing-md); background: #d9534f; color: white; border: none; border-radius: var(--border-radius); cursor: pointer; font-weight: 600; font-size: var(--font-size-sm);">
-                  Eliminar Profesor
-                </button>
-              </div>
+              ${adminActionsHtml}
             </div>
           </div>
         </div>
       `;
 
-      // Agregar event listeners para botones de admin
-      const editBtn = document.getElementById('editTeacherBtn');
-      const deleteBtn = document.getElementById('deleteTeacherBtn');
+      // Event listeners según rol
+      if (isAdmin) {
+        const editBtn = document.getElementById('editTeacherBtn');
+        const deleteBtn = document.getElementById('deleteTeacherBtn');
+        if (editBtn) editBtn.addEventListener('click', () => this.showEditTeacherPage(teacher));
+        if (deleteBtn) deleteBtn.addEventListener('click', () => this.showDeleteConfirmation(teacher));
+      } else {
+        const bookBtn = document.getElementById('bookClassBtn');
+        const bookErr = document.getElementById('bookError');
+        if (bookBtn) {
+          bookBtn.addEventListener('click', () => {
+              // Si no está autenticado -> mostrar error inline (arriba del botón)
+              if (!this.currentUser) {
+                if (bookErr) { bookErr.textContent = 'Debes iniciar sesión para agendar una clase'; bookErr.style.visibility = 'visible'; }
+                return;
+              }
 
-      if (editBtn) {
-        editBtn.addEventListener('click', () => {
-          this.showEditTeacherPage(teacher);
-        });
-      }
-
-      if (deleteBtn) {
-        deleteBtn.addEventListener('click', () => {
-          this.showDeleteConfirmation(teacher);
-        });
+              // Usuario autenticado -> comportamiento: por ahora no hace nada (silencioso)
+              if (bookErr) { bookErr.textContent = ''; bookErr.style.visibility = 'hidden'; }
+              return;
+          });
+        }
       }
     } catch (error) {
       console.error('Error:', error);

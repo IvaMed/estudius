@@ -4,18 +4,22 @@
 
 const express = require('express');
 const TeacherController = require('../controllers/teacherController');
+const { authenticate, requireAdmin } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
 // Rutas de Profesores
-router.post('/teachers', TeacherController.createTeacher);
+// Lecturas públicas
 router.get('/teachers', TeacherController.getAllTeachers);
 router.get('/teachers/recommendations', TeacherController.getRecommendedTeachers);
 router.get('/teachers/random', TeacherController.getRandomTeachers);
 router.get('/teachers/search', TeacherController.searchTeachers);
 router.get('/teachers/:id', TeacherController.getTeacherById);
-router.put('/teachers/:id', TeacherController.updateTeacher);
-router.delete('/teachers/:id', TeacherController.deleteTeacher);
+
+// Operaciones administrativas: requieren autenticación y rol admin
+router.post('/teachers', authenticate, requireAdmin, TeacherController.createTeacher);
+router.put('/teachers/:id', authenticate, requireAdmin, TeacherController.updateTeacher);
+router.delete('/teachers/:id', authenticate, requireAdmin, TeacherController.deleteTeacher);
 
 // Rutas de Utilidad
 router.get('/subjects', TeacherController.getAvailableSubjects);

@@ -6,6 +6,8 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const teacherRoutes = require('./routes/teacherRoutes');
+const authRoutes = require('./routes/authRoutes');
+const bookingRoutes = require('./routes/bookingRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -41,6 +43,10 @@ app.use((req, res, next) => {
 // RUTAS
 // =====================================================
 
+// Rutas de autenticación y bookings
+app.use('/api', authRoutes);
+app.use('/api', bookingRoutes);
+// Rutas de profesores
 app.use('/api', teacherRoutes);
 
 // Servir index.html en la raíz
@@ -58,6 +64,11 @@ app.get('/*', (req, res) => {
       message: 'Endpoint no encontrado'
     });
   }
+});
+
+// Manejo de endpoints /api/* no definidos (todas las methods) - devolver JSON en lugar de HTML
+app.use('/api', (req, res) => {
+  res.status(404).json({ success: false, message: 'Endpoint API no encontrado', path: req.path, method: req.method });
 });
 
 // =====================================================

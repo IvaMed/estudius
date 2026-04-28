@@ -165,6 +165,106 @@ class TeacherAPI {
   }
 }
 
+class AuthAPI {
+  static async register(data) {
+    try {
+      return await httpRequest('POST', `${API_BASE_URL}/auth/register`, data);
+    } catch (error) {
+      console.error('Error en AuthAPI.register:', error);
+      throw error;
+    }
+  }
+
+  static async login(data) {
+    try {
+      return await httpRequest('POST', `${API_BASE_URL}/auth/login`, data);
+    } catch (error) {
+      console.error('Error en AuthAPI.login:', error);
+      throw error;
+    }
+  }
+
+  static async me(token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/me`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('Error en AuthAPI.me:', error);
+      throw error;
+    }
+  }
+
+  static async changePassword(token, data) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+      });
+      const text = await response.text();
+      let json;
+      try { json = text ? JSON.parse(text) : {}; } catch (e) { json = null; }
+      if (!response.ok) {
+        const message = (json && json.message) ? json.message : (text || 'Error cambiando contraseña');
+        const err = new Error(message);
+        err.details = json || { raw: text };
+        throw err;
+      }
+      return json || { success: true };
+    } catch (error) {
+      console.error('Error en AuthAPI.changePassword:', error);
+      throw error;
+    }
+  }
+}
+
+class BookingAPI {
+  static async createBooking(token, bookingData) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bookings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(bookingData)
+      });
+
+      const json = await response.json();
+      if (!response.ok) {
+        const error = new Error(json.message || 'Error creando reserva');
+        error.details = json;
+        throw error;
+      }
+      return json;
+    } catch (error) {
+      console.error('Error en BookingAPI.createBooking:', error);
+      throw error;
+    }
+  }
+
+  static async getMyBookings(token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bookings/my`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('Error en BookingAPI.getMyBookings:', error);
+      throw error;
+    }
+  }
+}
+
 // Constantes de materias
 const SUBJECTS = {
   'Materias escolares clásicas': [

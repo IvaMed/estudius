@@ -35,6 +35,21 @@ async function initializeDatabase() {
         console.error('ERROR al crear tablas:', err.message);
       } else {
         console.log('[OK] Base de datos inicializada correctamente');
+          // Sembrar cuenta admin por defecto si no existe
+          (async () => {
+            try {
+              const adminEmail = 'admin@gmail.com';
+              const existing = await dbGet('SELECT id FROM users WHERE email = ?', [adminEmail]);
+              if (!existing) {
+                const bcrypt = require('bcryptjs');
+                const hash = bcrypt.hashSync('contraseña', 10);
+                await dbRun('INSERT INTO users (firstName, lastName, email, passwordHash, role) VALUES (?, ?, ?, ?, ?)', ['admin', 'admin', adminEmail, hash, 'admin']);
+                console.log('[OK] Cuenta admin creada: admin@gmail.com / contraseña');
+              }
+            } catch (err) {
+              console.error('Error sembrando admin:', err.message || err);
+            }
+          })();
       }
     });
   } catch (error) {
