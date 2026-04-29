@@ -30,38 +30,6 @@ CREATE INDEX IF NOT EXISTS idx_subjects ON teachers(subjects);
 CREATE INDEX IF NOT EXISTS idx_modality ON teachers(modality);
 CREATE INDEX IF NOT EXISTS idx_views ON teachers(views);
 
--- =====================================================
--- TABLA DE USUARIOS (Autenticación)
--- =====================================================
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    firstName TEXT NOT NULL,
-    lastName TEXT,
-    email TEXT NOT NULL UNIQUE,
-    passwordHash TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'user', -- 'user' | 'admin'
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-
--- =====================================================
--- TABLA DE RESERVAS / BOOKINGS (Agendar clases)
--- =====================================================
-CREATE TABLE IF NOT EXISTS bookings (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    userId INTEGER NOT NULL,
-    teacherId INTEGER NOT NULL,
-    datetime TEXT NOT NULL,
-    message TEXT,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (teacherId) REFERENCES teachers(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_bookings_user ON bookings(userId);
-CREATE INDEX IF NOT EXISTS idx_bookings_teacher ON bookings(teacherId);
-
 -- Tabla de auditoría (opcional para futuro)
 CREATE TABLE IF NOT EXISTS teacher_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
