@@ -246,6 +246,84 @@ header {
   z-index: 2000;
 }
 
+/* ADMIN DROPDOWN (header-left) */
+.admin-wrapper {
+  position: relative;
+  display: inline-block;
+  margin-left: 8px;
+}
+
+.admin-button {
+  background: transparent;
+  border: 2px solid var(--isotipo-dark);
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-button:hover {
+  background: var(--isotipo-dark);
+  color: var(--color-white);
+}
+
+.admin-dropdown {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  background: var(--color-white);
+  border: 1px solid var(--color-gray-medium);
+  padding: 8px;
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  min-width: 200px;
+  z-index: 2000;
+  display: none;
+}
+
+.admin-dropdown-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.admin-dropdown-item:hover { background: var(--color-gray-light); }
+
+/* Small action buttons used in admin table */
+.admin-action-btn {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  border-radius: 6px;
+  font-weight: 700;
+}
+
+/* Back button for admin pages */
+.admin-back-btn, #adminBackBtn {
+  padding: 6px 10px;
+  font-size: 0.95rem;
+  border-radius: 8px;
+}
+
+/* Features management */
+.features-grid {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.feature-card {
+  background: white;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 12px;
+  min-width: 260px;
+  flex: 1 1 280px;
+}
+.feature-card input { width: 100%; box-sizing: border-box; }
+.feature-card .admin-action-btn { padding: 6px 8px; font-size: 0.85rem; margin-left:6px; }
+
 .inline-error {
   color: var(--color-error);
   font-size: 0.95rem;

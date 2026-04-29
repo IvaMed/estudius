@@ -12,6 +12,12 @@ class EstudiusApp {
     this.currentDisplayedTeachers = [];
     this.currentUser = null; // objeto del usuario autenticado
     this.authToken = null;   // token JWT
+    // Admin page state
+    this.adminPage = 1;
+    this.adminPageSize = 10;
+    this.adminSearch = '';
+    // Página previa antes de entrar a sección admin (para botón "volver")
+    this.previousPageBeforeAdmin = null;
     
     // Estado de filtros
     this.filters = {
@@ -84,12 +90,16 @@ class EstudiusApp {
       const bubble = document.getElementById('profileBubble');
       const menu = document.getElementById('profileMenu');
       if (bubble && menu) {
-        // Escoger color aleatorio de la paleta definida en :root (evitar blanco / negro)
+        // Usar color persistido del usuario si existe, sino fallback a paleta CSS
         try {
-          const paletteVars = ['--color-primary', '--color-secondary', '--isotipo-dark', '--isotipo-darker', '--isotipo-accent', '--color-success', '--color-warning', '--color-error', '--color-info'];
-          const pick = paletteVars[Math.floor(Math.random() * paletteVars.length)];
-          const computed = getComputedStyle(document.documentElement).getPropertyValue(pick).trim() || '#587D71';
-          bubble.style.backgroundColor = computed;
+          if (this.currentUser && this.currentUser.color) {
+            bubble.style.backgroundColor = this.currentUser.color;
+          } else {
+            const paletteVars = ['--color-primary', '--color-secondary', '--isotipo-dark', '--isotipo-darker', '--isotipo-accent', '--color-success', '--color-warning', '--color-error', '--color-info'];
+            const pick = paletteVars[Math.floor(Math.random() * paletteVars.length)];
+            const computed = getComputedStyle(document.documentElement).getPropertyValue(pick).trim() || '#587D71';
+            bubble.style.backgroundColor = computed;
+          }
         } catch (e) {
           bubble.style.backgroundColor = '#587D71';
         }
@@ -126,6 +136,52 @@ class EstudiusApp {
     } catch (e) {
       // ignore
     }
+
+    // Admin dropdown en el header-left: visible para cualquier usuario con rol 'admin'
+    try {
+      const headerLeft = document.querySelector('.header-left');
+      let adminWrapper = document.getElementById('adminWrapper');
+      if (this.currentUser && this.currentUser.role === 'admin') {
+        if (!adminWrapper && headerLeft) {
+          adminWrapper = document.createElement('div');
+          adminWrapper.id = 'adminWrapper';
+          adminWrapper.className = 'admin-wrapper';
+          adminWrapper.innerHTML = `<button id="adminHeaderBtn" class="admin-button">Admin ▾</button><div id="adminDropdown" class="admin-dropdown"></div>`;
+          headerLeft.appendChild(adminWrapper);
+        }
+
+        if (adminWrapper) {
+          const dropdown = adminWrapper.querySelector('#adminDropdown');
+          const btn = adminWrapper.querySelector('#adminHeaderBtn');
+
+          // Mostrar opción para modificar características a todos los admins
+          dropdown.innerHTML = `<div class="admin-dropdown-item" id="manageFeaturesBtn">Modificar características</div>`;
+          const manageFeatures = dropdown.querySelector('#manageFeaturesBtn');
+          if (manageFeatures) {
+            manageFeatures.onclick = (e) => { e.stopPropagation(); this.showPage('admin-features'); dropdown.style.display = 'none'; };
+          }
+
+          // Para el super-admin (admin@gmail.com) agregar además administración de cuentas
+          if (this.currentUser.email && this.currentUser.email.toLowerCase() === 'admin@gmail.com') {
+            const acc = document.createElement('div');
+            acc.className = 'admin-dropdown-item';
+            acc.id = 'manageAccountsBtn';
+            acc.textContent = 'Administración de cuentas';
+            dropdown.appendChild(acc);
+            acc.onclick = (e) => { e.stopPropagation(); this.showPage('admin'); dropdown.style.display = 'none'; };
+          }
+
+          if (btn) {
+            btn.onclick = (e) => {
+              e.stopPropagation();
+              dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+            };
+          }
+        }
+      } else {
+        if (adminWrapper) adminWrapper.remove();
+      }
+    } catch (e) { /* ignore */ }
   }
 
   showAuthModal(mode = 'login', opts = {}) {
@@ -477,10 +533,14 @@ class EstudiusApp {
   }
 
   setupEventListeners() {
-    // Header logo - ir a home
-    const headerLogo = document.querySelector('.header-left');
-    if (headerLogo) {
-      headerLogo.addEventListener('click', () => this.navigateToHome());
+    // Header logo - ir a home (solo cuando se hace click en logo/texto)
+    const headerLeft = document.querySelector('.header-left');
+    if (headerLeft) {
+      headerLeft.addEventListener('click', (e) => {
+        if (e.target.closest('.header-logo-text') || e.target.closest('.header-logo') || e.target.closest('.header-logo-image')) {
+          this.navigateToHome();
+        }
+      });
     }
 
     // Menú de navegación
@@ -504,13 +564,21 @@ class EstudiusApp {
     // Manejo de cambio de hash (URL)
     window.addEventListener('hashchange', () => this.handleRouteChange());
 
-    // Cerrar menú de perfil al hacer clic afuera
+    // Cerrar menú de perfil y admin al hacer clic afuera
     document.addEventListener('click', (e) => {
       const menu = document.getElementById('profileMenu');
       const wrapper = document.querySelector('.profile-wrapper');
       if (menu && wrapper) {
         if (!e.target.closest('.profile-wrapper')) {
           menu.style.display = 'none';
+        }
+      }
+
+      const adminDropdown = document.getElementById('adminDropdown');
+      const adminWrapper = document.getElementById('adminWrapper');
+      if (adminDropdown && adminWrapper) {
+        if (!e.target.closest('.admin-wrapper')) {
+          adminDropdown.style.display = 'none';
         }
       }
     });
@@ -541,6 +609,13 @@ class EstudiusApp {
       return;
     }
 
+    // Si entramos a una página de administración desde una página no-admin,
+    // recordamos la página previa para el botón de volver.
+    const adminPages = new Set(['admin', 'add-teacher', 'admin-features']);
+    if (adminPages.has(pageName) && !adminPages.has(this.currentPage)) {
+      this.previousPageBeforeAdmin = this.currentPage || 'home';
+    }
+
     this.currentPage = pageName;
     this.renderPage();
   }
@@ -549,6 +624,12 @@ class EstudiusApp {
     const main = document.querySelector('main');
     
     switch (this.currentPage) {
+      case 'admin':
+        this.renderAdminPage(main);
+        break;
+      case 'admin-features':
+        this.renderAdminFeaturesPage(main);
+        break;
       case 'add-teacher':
         this.renderAddTeacherPage(main);
         break;
@@ -563,6 +644,486 @@ class EstudiusApp {
       case 'home':
       default:
         this.renderHomePage(main);
+    }
+  }
+
+  async renderAdminPage(main) {
+    if (!this.currentUser || this.currentUser.role !== 'admin') {
+      showAlert('Debes ser administrador para acceder a esta sección', 'error');
+      this.currentPage = 'home';
+      this.renderPage();
+      return;
+    }
+
+    main.innerHTML = `
+      <div class="container" style="max-width: 1000px; padding-top: var(--spacing-2xl);">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom: var(--spacing-2xl);">
+          <button id="adminBackBtn" class="btn btn-outline" style="padding:6px 10px; font-size:0.95rem;">← Volver</button>
+          <h1 style="color: var(--isotipo-dark); margin:0;">Panel de Administración</h1>
+        </div>
+        <div id="adminContent" style="margin-top:12px;"></div>
+      </div>
+    `;
+
+    const adminContent = document.getElementById('adminContent');
+    const adminBackBtn = document.getElementById('adminBackBtn');
+    if (adminBackBtn) {
+      adminBackBtn.addEventListener('click', () => {
+        this.showPage(this.previousPageBeforeAdmin || 'home');
+        this.previousPageBeforeAdmin = null;
+      });
+    }
+    if (!adminContent) return;
+
+    // Solo el super-admin (admin@gmail.com) puede administrar cuentas por ahora
+    if (!this.currentUser.email || this.currentUser.email.toLowerCase() !== 'admin@gmail.com') {
+      adminContent.innerHTML = `<div class="card" style="padding:16px;">Solo el usuario <strong>admin@gmail.com</strong> puede gestionar cuentas.</div>`;
+      return;
+    }
+
+    adminContent.innerHTML = `<div id="accountsSection"><p>Cargando cuentas...</p></div>`;
+
+    try {
+      const resp = await AdminAPI.listUsers(this.authToken, this.adminPage, this.adminPageSize, this.adminSearch);
+      if (!resp || !resp.success) {
+        adminContent.innerHTML = `<div class="card" style="padding:16px; color: #b00020;">Error cargando usuarios</div>`;
+        return;
+      }
+
+      const users = resp.users || [];
+      const total = resp.totalCount || 0;
+      const page = resp.page || this.adminPage;
+      const pageSize = resp.pageSize || this.adminPageSize;
+
+      // Header: search box
+      const headerHtml = document.createElement('div');
+      headerHtml.style.display = 'flex';
+      headerHtml.style.justifyContent = 'space-between';
+      headerHtml.style.alignItems = 'center';
+      headerHtml.style.marginBottom = '16px';
+      headerHtml.innerHTML = `
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input id="adminSearchInput" placeholder="Buscar por nombre o email" style="padding:8px 12px; border-radius:8px; border:1px solid #ddd; min-width:320px;" value="${this.adminSearch || ''}" />
+          <button id="adminSearchBtn" class="btn btn-primary" style="padding:6px 10px; font-size:0.9rem;">Buscar</button>
+        </div>
+        <div style="font-size:0.95rem; color:#666;">Mostrando ${Math.min(total, (page - 1) * pageSize + 1)} - ${Math.min(total, page * pageSize)} de ${total}</div>
+      `;
+
+      adminContent.innerHTML = '';
+      adminContent.appendChild(headerHtml);
+
+      if (users.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'card';
+        empty.style.padding = '16px';
+        empty.textContent = 'No hay cuentas disponibles';
+        adminContent.appendChild(empty);
+        return;
+      }
+
+      const table = document.createElement('table');
+      table.style.width = '100%';
+      table.style.borderCollapse = 'collapse';
+      table.innerHTML = `
+        <thead>
+          <tr style="text-align:left;">
+            <th>Usuario</th>
+            <th>Email</th>
+            <th>Rol</th>
+            <th style="width:260px;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      `;
+
+      const tbody = table.querySelector('tbody');
+      users.forEach(u => {
+        const tr = document.createElement('tr');
+        tr.style.borderTop = '1px solid #eee';
+        tr.style.padding = '8px 0';
+        const nameCell = document.createElement('td');
+        nameCell.style.padding = '12px 8px';
+        const initial = (u.firstName || 'U').charAt(0).toUpperCase();
+        const bubble = `<span style="display:inline-block; width:32px; height:32px; border-radius:50%; background:${u.color || '#587D71'}; color:#fff; text-align:center; line-height:32px; font-weight:700; margin-right:8px;">${initial}</span>`;
+        nameCell.innerHTML = `${bubble} ${u.firstName} ${u.lastName}`;
+
+        const emailCell = document.createElement('td');
+        emailCell.style.padding = '12px 8px';
+        emailCell.textContent = u.email;
+
+        const roleCell = document.createElement('td');
+        roleCell.style.padding = '12px 8px';
+        roleCell.textContent = u.role;
+
+        const actionsCell = document.createElement('td');
+        actionsCell.style.padding = '12px 8px';
+
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'admin-action-btn';
+        toggleBtn.textContent = u.role === 'admin' ? 'Quitar admin' : 'Promover admin';
+        toggleBtn.style.background = 'transparent';
+        toggleBtn.style.border = '1px solid #587D71';
+        toggleBtn.style.color = '#274580';
+        toggleBtn.addEventListener('click', async () => {
+          try {
+            const targetRole = u.role === 'admin' ? 'user' : 'admin';
+            const r = await AdminAPI.updateUserRole(this.authToken, u.id, targetRole);
+            if (r && r.success) {
+              showAlert('Rol actualizado', 'success');
+              this.renderAdminPage(main);
+            } else {
+              showAlert((r && r.message) || 'No se pudo actualizar rol', 'error');
+            }
+          } catch (err) {
+            console.error('Error actualizando rol:', err);
+            showAlert('Error actualizando rol', 'error');
+          }
+        });
+
+        const pwBtn = document.createElement('button');
+        pwBtn.className = 'admin-action-btn';
+        pwBtn.style.marginLeft = '8px';
+        pwBtn.style.background = '#274580';
+        pwBtn.style.color = 'white';
+        pwBtn.textContent = 'Cambiar contraseña';
+        pwBtn.addEventListener('click', () => {
+          this.showAdminSetPasswordModal(u);
+        });
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'admin-action-btn';
+        delBtn.style.marginLeft = '8px';
+        delBtn.style.background = '#d9534f';
+        delBtn.style.color = 'white';
+        delBtn.textContent = 'Borrar cuenta';
+        delBtn.addEventListener('click', () => {
+          this.showAdminDeleteConfirmation(u);
+        });
+
+        actionsCell.appendChild(toggleBtn);
+        actionsCell.appendChild(pwBtn);
+        actionsCell.appendChild(delBtn);
+
+        tr.appendChild(nameCell);
+        tr.appendChild(emailCell);
+        tr.appendChild(roleCell);
+        tr.appendChild(actionsCell);
+        tbody.appendChild(tr);
+      });
+
+      adminContent.appendChild(table);
+
+      // Pagination controls
+      const pages = Math.ceil(total / pageSize);
+      const pager = document.createElement('div');
+      pager.style.display = 'flex';
+      pager.style.justifyContent = 'center';
+      pager.style.alignItems = 'center';
+      pager.style.gap = '8px';
+      pager.style.marginTop = '16px';
+
+      const prev = document.createElement('button');
+      prev.className = 'btn btn-outline';
+      prev.textContent = '← Anterior';
+      prev.style.padding = '6px 10px';
+      prev.style.fontSize = '0.95rem';
+      prev.disabled = page <= 1;
+      prev.addEventListener('click', () => { this.adminPage = Math.max(1, page - 1); this.renderAdminPage(main); });
+
+      const next = document.createElement('button');
+      next.className = 'btn btn-outline';
+      next.textContent = 'Siguiente →';
+      next.style.padding = '6px 10px';
+      next.style.fontSize = '0.95rem';
+      next.disabled = page >= pages;
+      next.addEventListener('click', () => { this.adminPage = Math.min(pages, page + 1); this.renderAdminPage(main); });
+
+      pager.appendChild(prev);
+      pager.appendChild(document.createElement('span')).textContent = ` Página ${page} de ${pages} `;
+      pager.appendChild(next);
+      adminContent.appendChild(pager);
+
+      // Search bindings
+      const searchInput = document.getElementById('adminSearchInput');
+      const searchBtn = document.getElementById('adminSearchBtn');
+      if (searchBtn && searchInput) {
+        searchBtn.addEventListener('click', () => {
+          this.adminSearch = searchInput.value.trim();
+          this.adminPage = 1;
+          this.renderAdminPage(main);
+        });
+        searchInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { searchBtn.click(); } });
+      }
+    } catch (err) {
+      console.error('Error en renderAdminPage:', err);
+      adminContent.innerHTML = `<div class="card" style="padding:16px; color:#b00020;">Error cargando panel de administración</div>`;
+    }
+  }
+
+  async renderAdminFeaturesPage(main) {
+    if (!this.currentUser || this.currentUser.role !== 'admin') {
+      showAlert('Debes ser administrador para acceder a esta sección', 'error');
+      this.currentPage = 'home';
+      this.renderPage();
+      return;
+    }
+
+    this.currentFeatureType = this.currentFeatureType || 'subject';
+
+    main.innerHTML = `
+      <div class="container" style="max-width: 1100px; padding-top: var(--spacing-2xl);">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom: var(--spacing-2xl);">
+          <button id="adminBackBtn" class="btn btn-outline" style="padding:6px 10px; font-size:0.95rem;">← Volver</button>
+          <h1 style="color: var(--isotipo-dark); margin:0;">Modificar Características</h1>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
+          <button id="featTabSubjects" class="btn btn-outline">Materias</button>
+          <button id="featTabModalities" class="btn btn-outline">Modalidades</button>
+          <div style="flex:1"></div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input id="newCategoryInput" placeholder="Nueva categoría" style="padding:8px 12px; border-radius:8px; border:1px solid #ddd; min-width:220px;" />
+            <button id="createCategoryBtn" class="btn btn-primary">Crear categoría</button>
+          </div>
+        </div>
+
+        <div id="featuresContent"></div>
+      </div>
+    `;
+
+    const adminBackBtn = document.getElementById('adminBackBtn');
+    if (adminBackBtn) adminBackBtn.addEventListener('click', () => { this.showPage(this.previousPageBeforeAdmin || 'home'); this.previousPageBeforeAdmin = null; });
+
+    const tabSubj = document.getElementById('featTabSubjects');
+    const tabMod = document.getElementById('featTabModalities');
+    const newCatInput = document.getElementById('newCategoryInput');
+    const createCatBtn = document.getElementById('createCategoryBtn');
+
+    const loadAndRender = async () => {
+      const resp = await AdminAPI.listFeatures(this.authToken, this.currentFeatureType);
+      const container = document.getElementById('featuresContent');
+      container.innerHTML = '';
+      if (!resp || !resp.success) { container.innerHTML = '<div class="card" style="padding:16px">Error cargando características</div>'; return; }
+
+      const categories = resp.categories || [];
+      const listWrap = document.createElement('div');
+      listWrap.className = 'features-grid';
+      listWrap.style.display = 'flex';
+      listWrap.style.flexWrap = 'wrap';
+      listWrap.style.gap = '12px';
+
+      categories.forEach(cat => {
+        const card = document.createElement('div');
+        card.className = 'feature-card';
+        card.style.background = 'white';
+        card.style.border = '1px solid #eee';
+        card.style.borderRadius = '8px';
+        card.style.padding = '12px';
+        card.style.minWidth = '260px';
+        card.style.flex = '1 1 280px';
+
+        const header = document.createElement('div');
+        header.style.display = 'flex';
+        header.style.justifyContent = 'space-between';
+        header.style.alignItems = 'center';
+        header.innerHTML = `<strong>${cat.name}</strong>`;
+
+        const headerBtns = document.createElement('div');
+        const editBtn = document.createElement('button'); editBtn.className = 'admin-action-btn'; editBtn.textContent = 'Editar';
+        const delBtn = document.createElement('button'); delBtn.className = 'admin-action-btn'; delBtn.textContent = 'Borrar'; delBtn.style.background = '#d9534f'; delBtn.style.color = 'white';
+        headerBtns.appendChild(editBtn); headerBtns.appendChild(delBtn);
+        header.appendChild(headerBtns);
+
+        editBtn.addEventListener('click', async () => {
+          const nv = prompt('Nuevo nombre de la categoría', cat.name);
+          if (nv && nv.trim()) {
+            const r = await AdminAPI.updateFeatureCategory(this.authToken, cat.id, nv.trim());
+            if (r && r.success) { showAlert('Categoría actualizada', 'success'); loadAndRender(); } else showAlert(r && r.message ? r.message : 'Error', 'error');
+          }
+        });
+        delBtn.addEventListener('click', async () => {
+          if (!confirm(`¿Eliminar categoría "${cat.name}" y todas sus materias?`)) return;
+          const r = await AdminAPI.deleteFeatureCategory(this.authToken, cat.id);
+          if (r && r.success) { showAlert('Categoría eliminada', 'success'); loadAndRender(); } else showAlert(r && r.message ? r.message : 'Error', 'error');
+        });
+
+        card.appendChild(header);
+
+        const itemsWrap = document.createElement('div');
+        itemsWrap.style.marginTop = '8px';
+        (cat.items || []).forEach(it => {
+          const row = document.createElement('div');
+          row.style.display = 'flex';
+          row.style.justifyContent = 'space-between';
+          row.style.alignItems = 'center';
+          row.style.padding = '6px 0';
+          row.innerHTML = `<div>${it.name}</div>`;
+          const btns = document.createElement('div');
+          const editItem = document.createElement('button'); editItem.className = 'admin-action-btn'; editItem.textContent = 'Editar';
+          const delItem = document.createElement('button'); delItem.className = 'admin-action-btn'; delItem.textContent = 'Borrar'; delItem.style.background = '#d9534f'; delItem.style.color = 'white';
+          btns.appendChild(editItem); btns.appendChild(delItem);
+          row.appendChild(btns);
+          editItem.addEventListener('click', async () => {
+            const nv = prompt('Nuevo nombre', it.name);
+            if (nv && nv.trim()) {
+              const r = await AdminAPI.updateFeatureItem(this.authToken, it.id, { name: nv.trim(), categoryId: cat.id });
+              if (r && r.success) { showAlert('Materia actualizada', 'success'); loadAndRender(); } else showAlert(r && r.message ? r.message : 'Error', 'error');
+            }
+          });
+          delItem.addEventListener('click', async () => {
+            if (!confirm(`¿Eliminar "${it.name}"?`)) return;
+            const r = await AdminAPI.deleteFeatureItem(this.authToken, it.id);
+            if (r && r.success) { showAlert('Materia eliminada', 'success'); loadAndRender(); } else showAlert(r && r.message ? r.message : 'Error', 'error');
+          });
+          itemsWrap.appendChild(row);
+        });
+
+        // Add new item input
+        const addRow = document.createElement('div');
+        addRow.style.display = 'flex';
+        addRow.style.gap = '8px';
+        addRow.style.marginTop = '8px';
+        const input = document.createElement('input'); input.placeholder = 'Nueva materia'; input.style.flex = '1'; input.style.padding = '8px 10px'; input.style.border = '1px solid #ddd'; input.style.borderRadius = '6px';
+        const addBtn = document.createElement('button'); addBtn.className = 'btn btn-primary'; addBtn.textContent = 'Agregar'; addBtn.style.padding = '6px 10px';
+        addRow.appendChild(input); addRow.appendChild(addBtn);
+        addBtn.addEventListener('click', async () => {
+          const val = input.value && input.value.trim();
+          if (!val) return showAlert('Nombre requerido', 'error');
+          const r = await AdminAPI.createFeatureItem(this.authToken, cat.id, val);
+          if (r && r.success) { showAlert('Materia creada', 'success'); input.value = ''; loadAndRender(); } else showAlert(r && r.message ? r.message : 'Error', 'error');
+        });
+
+        card.appendChild(itemsWrap);
+        card.appendChild(addRow);
+        listWrap.appendChild(card);
+      });
+
+      container.appendChild(listWrap);
+    };
+
+    // Tab buttons
+    tabSubj.addEventListener('click', () => { this.currentFeatureType = 'subject'; loadAndRender(); });
+    tabMod.addEventListener('click', () => { this.currentFeatureType = 'modality'; loadAndRender(); });
+
+    createCatBtn.addEventListener('click', async () => {
+      const name = newCatInput.value && newCatInput.value.trim();
+      if (!name) return showAlert('Nombre de categoría requerido', 'error');
+      const r = await AdminAPI.createFeatureCategory(this.authToken, this.currentFeatureType, name);
+      if (r && r.success) { showAlert('Categoría creada', 'success'); newCatInput.value = ''; loadAndRender(); } else showAlert(r && r.message ? r.message : 'Error', 'error');
+    });
+
+    // Inicial
+    loadAndRender();
+  }
+
+  showAdminSetPasswordModal(user) {
+    // Modal para que el admin setee nueva contraseña para otro usuario
+    this.closeAdminSetPasswordModal();
+    const overlay = document.createElement('div');
+    overlay.id = 'adminSetPwModal';
+    overlay.style.position = 'fixed';
+    overlay.style.left = '0'; overlay.style.top = '0'; overlay.style.right = '0'; overlay.style.bottom = '0';
+    overlay.style.background = 'rgba(0,0,0,0.5)'; overlay.style.display = 'flex'; overlay.style.alignItems = 'center'; overlay.style.justifyContent = 'center'; overlay.style.zIndex = '9999';
+
+    const container = document.createElement('div');
+    container.style.background = 'white'; container.style.padding = '20px'; container.style.borderRadius = '12px'; container.style.width = '420px';
+    container.innerHTML = `
+      <h3>Cambiar contraseña de ${user.firstName} ${user.lastName}</h3>
+      <form id="adminSetPwForm">
+        <div class="form-group required" style="display:flex; align-items:center; gap:8px;"><label style="min-width:140px;">Nueva contraseña</label><input id="newPasswordInput" name="newPassword" type="password" required style="flex:1;" /><label style="font-size:0.9rem; margin-left:6px; display:flex; align-items:center; gap:6px;"><input id="showNewPw" type="checkbox" /> Mostrar</label></div>
+        <div class="form-group required" style="display:flex; align-items:center; gap:8px;"><label style="min-width:140px;">Confirmar contraseña</label><input id="confirmPasswordInput" name="confirmPassword" type="password" required style="flex:1;" /></div>
+        <div style="display:flex; gap:8px; margin-top:12px;"><button type="submit" class="btn btn-primary">Cambiar</button><button type="button" id="cancelAdminSetPw" class="btn btn-outline">Cancelar</button></div>
+        <div id="adminSetPwErrors" style="margin-top:12px; color: #b00020;"></div>
+      </form>
+    `;
+    overlay.appendChild(container);
+    document.body.appendChild(overlay);
+
+    const form = document.getElementById('adminSetPwForm');
+    const cancel = document.getElementById('cancelAdminSetPw');
+    if (cancel) cancel.addEventListener('click', () => this.closeAdminSetPasswordModal());
+
+    // Toggle to show the new password while typing
+    const newPwInputEl = document.getElementById('newPasswordInput');
+    const showNewPwEl = document.getElementById('showNewPw');
+    if (showNewPwEl && newPwInputEl) {
+      showNewPwEl.addEventListener('change', () => {
+        newPwInputEl.type = showNewPwEl.checked ? 'text' : 'password';
+      });
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(form).entries());
+      const errEl = document.getElementById('adminSetPwErrors');
+      errEl.textContent = '';
+      if (!data.newPassword || !data.confirmPassword) { errEl.textContent = 'Ambos campos son requeridos'; return; }
+      if (data.newPassword !== data.confirmPassword) { errEl.textContent = 'Las contraseñas no coinciden'; return; }
+      const pwErrors = checkPasswordStrength(data.newPassword);
+      if (pwErrors.length > 0) { errEl.innerHTML = pwErrors.join('<br/>'); return; }
+
+      try {
+        const resp = await AdminAPI.setUserPassword(this.authToken, user.id, data.newPassword);
+        if (resp && resp.success) {
+          showAlert('Contraseña actualizada', 'success');
+          this.closeAdminSetPasswordModal();
+        } else {
+          errEl.textContent = (resp && resp.message) || 'No se pudo cambiar contraseña';
+        }
+      } catch (err) {
+        console.error('Error admin set password:', err);
+        errEl.textContent = err && err.message ? err.message : 'Error al cambiar contraseña';
+      }
+    });
+  }
+
+  closeAdminSetPasswordModal() { const m = document.getElementById('adminSetPwModal'); if (m) m.remove(); }
+
+  showAdminDeleteConfirmation(user) {
+    const main = document.querySelector('main');
+    main.innerHTML = `
+      <div class="detail-header">
+        <div class="detail-header-left">
+          <span class="detail-header-back" onclick="window.history.back()">←</span>
+          <h1>Confirmar eliminación de cuenta</h1>
+        </div>
+      </div>
+
+      <div class="container" style="max-width: 600px; padding-top: var(--spacing-2xl); text-align: center;">
+        <div style="background: #fff3cd; border: 2px solid #ffc107; padding: var(--spacing-2xl); border-radius: var(--border-radius); margin-bottom: var(--spacing-2xl);">
+          <h2 style="color: #8b6914; margin-bottom: var(--spacing-lg);">⚠️ ¿Eliminar cuenta?</h2>
+          <p style="font-size: var(--font-size-lg); margin-bottom: var(--spacing-lg); color: #333;">
+            Se eliminará permanentemente la cuenta de <strong>${user.firstName} ${user.lastName}</strong> (<em>${user.email}</em>)
+          </p>
+          <p style="color: #666; margin-bottom: var(--spacing-2xl);">Esta acción no se puede deshacer.</p>
+
+          <div style="display: flex; gap: var(--spacing-lg); justify-content: center;">
+            <button onclick="window.history.back()" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: var(--border-radius); cursor: pointer; font-weight: 600; font-size: var(--font-size-sm);">
+              Cancelar
+            </button>
+            <button id="confirmDeleteUserBtn" style="padding: 8px 16px; background: #d9534f; color: white; border: none; border-radius: var(--border-radius); cursor: pointer; font-weight: 600; font-size: var(--font-size-sm);">
+              Sí, borrar cuenta
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const confirmBtn = document.getElementById('confirmDeleteUserBtn');
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', async () => {
+        try {
+          const res = await AdminAPI.deleteUser(this.authToken, user.id);
+          if (res && res.success) {
+            showAlert('Cuenta eliminada', 'success');
+            setTimeout(() => this.renderAdminPage(document.querySelector('main')), 600);
+          } else {
+            showAlert((res && res.message) || 'No se pudo eliminar la cuenta', 'error');
+          }
+        } catch (err) {
+          console.error('Error borrando cuenta:', err);
+          showAlert('Error al eliminar cuenta', 'error');
+        }
+      });
     }
   }
 
@@ -1042,7 +1603,10 @@ class EstudiusApp {
   renderAddTeacherPage(main) {
     main.innerHTML = `
       <div class="container" style="max-width: 1000px; padding-top: var(--spacing-2xl);">
-        <h1 style="color: var(--isotipo-dark); margin-bottom: var(--spacing-2xl);">Agregar Nuevo Profesor</h1>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom: var(--spacing-2xl);">
+          <button id="adminBackBtn" class="btn btn-outline" style="padding:6px 10px; font-size:0.95rem;">← Volver</button>
+          <h1 style="color: var(--isotipo-dark); margin:0;">Agregar Nuevo Profesor</h1>
+        </div>
 
         <div class="form-section">
           <form id="addTeacherForm">
@@ -1259,6 +1823,15 @@ class EstudiusApp {
       // Limpiar errores visuales de campos
       clearFormErrors('addTeacherForm');
     });
+
+    // Botón volver en páginas admin
+    const adminBackBtn = document.getElementById('adminBackBtn');
+    if (adminBackBtn) {
+      adminBackBtn.addEventListener('click', () => {
+        this.showPage(this.previousPageBeforeAdmin || 'home');
+        this.previousPageBeforeAdmin = null;
+      });
+    }
   }
 
   validateAddTeacherForm() {
