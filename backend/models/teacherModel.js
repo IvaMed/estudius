@@ -78,7 +78,7 @@ const TeacherModel = {
   photo: String,               // URL de la/s foto/s (JSON array)
   
   // Información de clases
-  classSize: Number,           // Obligatorio, 0 < classSize < 30
+  classSize: Number,           // Obligatorio, 0 < classSize <= 40
   subjects: Array,             // Obligatorio, array de materias
   modality: String,            // Obligatorio (deprecated): 'virtual' | 'presencial'
   modalities: Array,          // Nueva: puede contener ['virtual','presencial']
@@ -127,7 +127,7 @@ const ValidateTeacher = {
   },
   
   classSize: (value) => {
-    return Number.isInteger(value) && value > 0 && value < 30;
+    return Number.isInteger(value) && value > 0 && value <= 40;
   },
   
   subjects: (value) => {

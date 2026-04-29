@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS teachers (
     description TEXT NOT NULL,
     curriculum TEXT NOT NULL,
     photo TEXT,
-    classSize INTEGER NOT NULL CHECK(classSize > 0 AND classSize < 30),
+    classSize INTEGER NOT NULL CHECK(classSize > 0 AND classSize <= 40),
     subjects TEXT NOT NULL,           -- JSON array de materias
     modality TEXT NOT NULL CHECK(modality IN ('virtual', 'presencial')),
     modalities TEXT,                   -- JSON array de modalidades (p.ej. ["virtual","presencial"]) - nuevo

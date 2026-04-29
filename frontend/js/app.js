@@ -18,6 +18,7 @@ class EstudiusApp {
     this.adminSearch = '';
     // Página previa antes de entrar a sección admin (para botón "volver")
     this.previousPageBeforeAdmin = null;
+    this.subjectGroups = [];
     
     // Estado de filtros
     this.filters = {
@@ -31,9 +32,41 @@ class EstudiusApp {
   async init() {
     console.log('Inicializando Estudius');
     await this.loadAuthState();
+    await this.loadSubjectGroups();
     this.setupEventListeners();
     this.renderPage();
     this.loadTeachers();
+  }
+
+  async loadSubjectGroups() {
+    try {
+      const resp = await TeacherAPI.getGroupedSubjects();
+      if (resp && resp.success && Array.isArray(resp.data)) {
+        this.subjectGroups = resp.data;
+        return;
+      }
+    } catch (error) {
+      console.warn('No se pudieron cargar materias agrupadas desde API, se usa fallback local');
+    }
+
+    this.subjectGroups = Object.entries(SUBJECTS).map(([name, items]) => ({
+      name,
+      items: (items || []).map((subject) => ({ name: subject, icon: '📘' }))
+    }));
+  }
+
+  getAllSubjectsFlat() {
+    return this.subjectGroups.flatMap((group) => (group.items || []).map((item) => item.name));
+  }
+
+  getSubjectIconMap() {
+    const map = new Map();
+    this.subjectGroups.forEach((group) => {
+      (group.items || []).forEach((item) => {
+        map.set(item.name, item.icon || '📘');
+      });
+    });
+    return map;
   }
 
   async loadAuthState() {
@@ -868,7 +901,7 @@ class EstudiusApp {
       return;
     }
 
-    this.currentFeatureType = this.currentFeatureType || 'subject';
+    this.currentFeatureType = 'subject';
 
     main.innerHTML = `
       <div class="container" style="max-width: 1100px; padding-top: var(--spacing-2xl);">
@@ -877,8 +910,7 @@ class EstudiusApp {
           <h1 style="color: var(--isotipo-dark); margin:0;">Modificar Características</h1>
         </div>
         <div style="display:flex; gap:8px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
-          <button id="featTabSubjects" class="btn btn-outline">Materias</button>
-          <button id="featTabModalities" class="btn btn-outline">Modalidades</button>
+          <button id="featTabSubjects" class="btn btn-outline">📚 Materias</button>
           <div style="flex:1"></div>
           <div style="display:flex; gap:8px; align-items:center;">
             <input id="newCategoryInput" placeholder="Nueva categoría" style="padding:8px 12px; border-radius:8px; border:1px solid #ddd; min-width:220px;" />
@@ -894,9 +926,71 @@ class EstudiusApp {
     if (adminBackBtn) adminBackBtn.addEventListener('click', () => { this.showPage(this.previousPageBeforeAdmin || 'home'); this.previousPageBeforeAdmin = null; });
 
     const tabSubj = document.getElementById('featTabSubjects');
-    const tabMod = document.getElementById('featTabModalities');
     const newCatInput = document.getElementById('newCategoryInput');
     const createCatBtn = document.getElementById('createCategoryBtn');
+    const EMOJI_CATALOG = [
+      '📘','📗','📙','📕','📚','📝','✏️','📐','🧮','🔬','🧪','⚗️','⚛️','🌍','🗺️','🏛️',
+      '💻','⌨️','🖥️','🧠','🤖','📊','📈','📉','💼','⚖️','🏦','🗣️','🇬🇧','🇫🇷','🇩🇪','🇮🇹',
+      '🇵🇹','🇯🇵','🇨🇳','🎨','🎭','🎵','🎬','📷','🧵','🧬','🌱','🔧','⚙️','🛠️','🔋','💡',
+      '🚀','🛰️','☀️','🌙','⭐','🔥','💧','🌿','🍎','🧲','🧱','🏫','🎓','📌','✅','🔍',
+      '🗂️','📎','📒','📔','📓','📰','🧾','📤','📥','🧭','🧊','⏱️','🕒','🟦','🟩','🟨'
+    ];
+
+    const createEmojiPickerButton = (targetInput) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'admin-action-btn';
+      btn.textContent = '😀 Emojis';
+      btn.style.marginLeft = '0';
+      btn.addEventListener('click', () => {
+        const existing = document.querySelector('.emoji-picker-popover');
+        if (existing) existing.remove();
+        const pop = document.createElement('div');
+        pop.className = 'emoji-picker-popover';
+        pop.style.position = 'absolute';
+        pop.style.background = '#fff';
+        pop.style.border = '1px solid #ddd';
+        pop.style.borderRadius = '10px';
+        pop.style.padding = '8px';
+        pop.style.maxWidth = '320px';
+        pop.style.maxHeight = '180px';
+        pop.style.overflowY = 'auto';
+        pop.style.display = 'grid';
+        pop.style.gridTemplateColumns = 'repeat(8, 1fr)';
+        pop.style.gap = '4px';
+        pop.style.zIndex = '3000';
+
+        EMOJI_CATALOG.forEach((emoji) => {
+          const eBtn = document.createElement('button');
+          eBtn.type = 'button';
+          eBtn.textContent = emoji;
+          eBtn.style.padding = '4px';
+          eBtn.style.border = '1px solid #eee';
+          eBtn.style.borderRadius = '6px';
+          eBtn.style.background = '#fafafa';
+          eBtn.addEventListener('click', () => {
+            targetInput.value = emoji;
+            pop.remove();
+          });
+          pop.appendChild(eBtn);
+        });
+
+        const rect = btn.getBoundingClientRect();
+        pop.style.left = `${rect.left + window.scrollX}px`;
+        pop.style.top = `${rect.bottom + window.scrollY + 6}px`;
+        document.body.appendChild(pop);
+        setTimeout(() => {
+          const close = (ev) => {
+            if (!pop.contains(ev.target) && ev.target !== btn) {
+              pop.remove();
+              document.removeEventListener('click', close);
+            }
+          };
+          document.addEventListener('click', close);
+        }, 0);
+      });
+      return btn;
+    };
 
     const loadAndRender = async () => {
       const resp = await AdminAPI.listFeatures(this.authToken, this.currentFeatureType);
@@ -937,13 +1031,18 @@ class EstudiusApp {
           const nv = prompt('Nuevo nombre de la categoría', cat.name);
           if (nv && nv.trim()) {
             const r = await AdminAPI.updateFeatureCategory(this.authToken, cat.id, nv.trim());
-            if (r && r.success) { showAlert('Categoría actualizada', 'success'); loadAndRender(); } else showAlert(r && r.message ? r.message : 'Error', 'error');
+            if (r && r.success) { showAlert('Categoría actualizada', 'success'); await this.loadSubjectGroups(); loadAndRender(); } else showAlert(r && r.message ? r.message : 'Error', 'error');
           }
         });
         delBtn.addEventListener('click', async () => {
-          if (!confirm(`¿Eliminar categoría "${cat.name}" y todas sus materias?`)) return;
-          const r = await AdminAPI.deleteFeatureCategory(this.authToken, cat.id);
-          if (r && r.success) { showAlert('Categoría eliminada', 'success'); loadAndRender(); } else showAlert(r && r.message ? r.message : 'Error', 'error');
+          this.showConfirmModal(
+            `¿Eliminar categoría "${cat.name}" y todas sus materias?`,
+            async () => {
+              const r = await AdminAPI.deleteFeatureCategory(this.authToken, cat.id);
+              if (r && r.success) { showAlert('Categoría eliminada', 'success'); await this.loadSubjectGroups(); loadAndRender(); } else showAlert(r && r.message ? r.message : 'Error', 'error');
+            },
+            'Eliminar'
+          );
         });
 
         card.appendChild(header);
@@ -953,26 +1052,68 @@ class EstudiusApp {
         (cat.items || []).forEach(it => {
           const row = document.createElement('div');
           row.style.display = 'flex';
+          row.style.flexWrap = 'wrap';
           row.style.justifyContent = 'space-between';
           row.style.alignItems = 'center';
+          row.style.gap = '8px';
           row.style.padding = '6px 0';
-          row.innerHTML = `<div>${it.name}</div>`;
+          row.innerHTML = `
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span>${it.icon || '📘'}</span>
+              <span>${it.name}</span>
+            </div>
+          `;
           const btns = document.createElement('div');
           const editItem = document.createElement('button'); editItem.className = 'admin-action-btn'; editItem.textContent = 'Editar';
           const delItem = document.createElement('button'); delItem.className = 'admin-action-btn'; delItem.textContent = 'Borrar'; delItem.style.background = '#d9534f'; delItem.style.color = 'white';
           btns.appendChild(editItem); btns.appendChild(delItem);
           row.appendChild(btns);
           editItem.addEventListener('click', async () => {
-            const nv = prompt('Nuevo nombre', it.name);
-            if (nv && nv.trim()) {
-              const r = await AdminAPI.updateFeatureItem(this.authToken, it.id, { name: nv.trim(), categoryId: cat.id });
-              if (r && r.success) { showAlert('Materia actualizada', 'success'); loadAndRender(); } else showAlert(r && r.message ? r.message : 'Error', 'error');
+            row.innerHTML = `
+              <div style="display:flex; flex-direction:column; gap:8px; flex:1; min-width:260px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:12px; color:#666; min-width:58px;">Nombre</span>
+                  <input class="edit-subject-name" value="${it.name}" style="flex:1; min-width:220px; padding:6px 8px; border:1px solid #ddd; border-radius:6px;" />
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:12px; color:#666; min-width:58px;">Emoji</span>
+                  <input class="edit-subject-icon" value="${it.icon || '📘'}" maxlength="3" style="width:70px; padding:6px 8px; border:1px solid #ddd; border-radius:6px;" />
+                  <span class="edit-subject-emoji-picker"></span>
+                </div>
+              </div>
+              <div style="display:flex; gap:6px; align-items:flex-start; flex-wrap:wrap;">
+                <button class="admin-action-btn save-edit-item" style="background:#3c8d40; color:white;">Guardar</button>
+                <button class="admin-action-btn cancel-edit-item">Cancelar</button>
+              </div>
+            `;
+            const saveBtn = row.querySelector('.save-edit-item');
+            const cancelBtn = row.querySelector('.cancel-edit-item');
+            const nameInput = row.querySelector('.edit-subject-name');
+            const iconInput = row.querySelector('.edit-subject-icon');
+            const emojiPickerSlot = row.querySelector('.edit-subject-emoji-picker');
+            if (emojiPickerSlot && iconInput) emojiPickerSlot.appendChild(createEmojiPickerButton(iconInput));
+            if (saveBtn) {
+              saveBtn.addEventListener('click', async () => {
+                const newName = (nameInput && nameInput.value ? nameInput.value : '').trim();
+                const newIcon = (iconInput && iconInput.value ? iconInput.value : '📘').trim();
+                if (!newName) return showAlert('Nombre requerido', 'error');
+                const r = await AdminAPI.updateFeatureItem(this.authToken, it.id, { name: newName, categoryId: cat.id, icon: newIcon || '📘' });
+                if (r && r.success) { showAlert('Materia actualizada', 'success'); await this.loadSubjectGroups(); loadAndRender(); } else showAlert(r && r.message ? r.message : 'Error', 'error');
+              });
+            }
+            if (cancelBtn) {
+              cancelBtn.addEventListener('click', () => loadAndRender());
             }
           });
           delItem.addEventListener('click', async () => {
-            if (!confirm(`¿Eliminar "${it.name}"?`)) return;
-            const r = await AdminAPI.deleteFeatureItem(this.authToken, it.id);
-            if (r && r.success) { showAlert('Materia eliminada', 'success'); loadAndRender(); } else showAlert(r && r.message ? r.message : 'Error', 'error');
+            this.showConfirmModal(
+              `¿Eliminar "${it.name}"?`,
+              async () => {
+                const r = await AdminAPI.deleteFeatureItem(this.authToken, it.id);
+                if (r && r.success) { showAlert('Materia eliminada', 'success'); await this.loadSubjectGroups(); loadAndRender(); } else showAlert(r && r.message ? r.message : 'Error', 'error');
+              },
+              'Eliminar'
+            );
           });
           itemsWrap.appendChild(row);
         });
@@ -983,13 +1124,16 @@ class EstudiusApp {
         addRow.style.gap = '8px';
         addRow.style.marginTop = '8px';
         const input = document.createElement('input'); input.placeholder = 'Nueva materia'; input.style.flex = '1'; input.style.padding = '8px 10px'; input.style.border = '1px solid #ddd'; input.style.borderRadius = '6px';
+        const iconInput = document.createElement('input'); iconInput.placeholder = '📘'; iconInput.maxLength = 3; iconInput.style.width = '72px'; iconInput.style.padding = '8px 10px'; iconInput.style.border = '1px solid #ddd'; iconInput.style.borderRadius = '6px';
+        const emojiPickerBtn = createEmojiPickerButton(iconInput);
         const addBtn = document.createElement('button'); addBtn.className = 'btn btn-primary'; addBtn.textContent = 'Agregar'; addBtn.style.padding = '6px 10px';
-        addRow.appendChild(input); addRow.appendChild(addBtn);
+        addRow.appendChild(input); addRow.appendChild(iconInput); addRow.appendChild(emojiPickerBtn); addRow.appendChild(addBtn);
         addBtn.addEventListener('click', async () => {
           const val = input.value && input.value.trim();
           if (!val) return showAlert('Nombre requerido', 'error');
-          const r = await AdminAPI.createFeatureItem(this.authToken, cat.id, val);
-          if (r && r.success) { showAlert('Materia creada', 'success'); input.value = ''; loadAndRender(); } else showAlert(r && r.message ? r.message : 'Error', 'error');
+          const icon = (iconInput.value || '📘').trim();
+          const r = await AdminAPI.createFeatureItem(this.authToken, cat.id, val, icon);
+          if (r && r.success) { showAlert('Materia creada', 'success'); input.value = ''; iconInput.value = ''; await this.loadSubjectGroups(); loadAndRender(); } else showAlert(r && r.message ? r.message : 'Error', 'error');
         });
 
         card.appendChild(itemsWrap);
@@ -1002,13 +1146,12 @@ class EstudiusApp {
 
     // Tab buttons
     tabSubj.addEventListener('click', () => { this.currentFeatureType = 'subject'; loadAndRender(); });
-    tabMod.addEventListener('click', () => { this.currentFeatureType = 'modality'; loadAndRender(); });
 
     createCatBtn.addEventListener('click', async () => {
       const name = newCatInput.value && newCatInput.value.trim();
       if (!name) return showAlert('Nombre de categoría requerido', 'error');
       const r = await AdminAPI.createFeatureCategory(this.authToken, this.currentFeatureType, name);
-      if (r && r.success) { showAlert('Categoría creada', 'success'); newCatInput.value = ''; loadAndRender(); } else showAlert(r && r.message ? r.message : 'Error', 'error');
+      if (r && r.success) { showAlert('Categoría creada', 'success'); newCatInput.value = ''; await this.loadSubjectGroups(); loadAndRender(); } else showAlert(r && r.message ? r.message : 'Error', 'error');
     });
 
     // Inicial
@@ -1078,6 +1221,57 @@ class EstudiusApp {
 
   closeAdminSetPasswordModal() { const m = document.getElementById('adminSetPwModal'); if (m) m.remove(); }
 
+  showConfirmModal(message, onConfirm, confirmText = 'Confirmar') {
+    this.closeConfirmModal();
+    const overlay = document.createElement('div');
+    overlay.id = 'confirmModal';
+    overlay.style.position = 'fixed';
+    overlay.style.left = '0';
+    overlay.style.top = '0';
+    overlay.style.right = '0';
+    overlay.style.bottom = '0';
+    overlay.style.background = 'rgba(0,0,0,0.5)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '9999';
+
+    const container = document.createElement('div');
+    container.style.background = 'white';
+    container.style.padding = '20px';
+    container.style.borderRadius = '12px';
+    container.style.width = '420px';
+    container.style.maxWidth = '90vw';
+    container.innerHTML = `
+      <h3 style="margin-bottom: 12px;">Confirmación</h3>
+      <p style="margin-bottom: 16px; color: #333;">${message}</p>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button id="confirmModalCancel" class="btn btn-outline">Cancelar</button>
+        <button id="confirmModalOk" class="btn btn-primary" style="background:#d9534f; border-color:#d9534f;">${confirmText}</button>
+      </div>
+    `;
+    overlay.appendChild(container);
+    document.body.appendChild(overlay);
+
+    const cancelBtn = document.getElementById('confirmModalCancel');
+    const okBtn = document.getElementById('confirmModalOk');
+    if (cancelBtn) cancelBtn.addEventListener('click', () => this.closeConfirmModal());
+    if (okBtn) {
+      okBtn.addEventListener('click', async () => {
+        try {
+          await onConfirm();
+        } finally {
+          this.closeConfirmModal();
+        }
+      });
+    }
+  }
+
+  closeConfirmModal() {
+    const m = document.getElementById('confirmModal');
+    if (m) m.remove();
+  }
+
   showAdminDeleteConfirmation(user) {
     const main = document.querySelector('main');
     main.innerHTML = `
@@ -1128,6 +1322,11 @@ class EstudiusApp {
   }
 
   async renderHomePage(main) {
+    const flatSubjects = this.getAllSubjectsFlat();
+    const featuredSubjects = flatSubjects.slice(0, 5);
+    const subjectIconMap = this.getSubjectIconMap();
+    const featuredButtons = featuredSubjects.map((subject) => `<button class="category-btn pill-button" data-filter-subject="${subject}">${subjectIconMap.get(subject) || '📘'} ${subject}</button>`).join('');
+
     main.innerHTML = `
       <!-- Sección de búsqueda -->
       <div class="container-full search-section">
@@ -1158,19 +1357,8 @@ class EstudiusApp {
         <section class="categories-section">
           <h3 class="section-title">Explora por Materia</h3>
           <div class="categories-grid subjects-chip-grid">
-            <button class="category-btn pill-button" data-filter-subject="Programación">Programación</button>
-            <button class="category-btn pill-button" data-filter-subject="Matemática">Matemática</button>
-            <button class="category-btn pill-button" data-filter-subject="Inglés">Inglés</button>
-            <button class="category-btn pill-button" data-filter-subject="Historia">Historia</button>
-            <button class="category-btn pill-button" data-filter-subject="Física">Física</button>
-            <button class="category-btn pill-button" id="verTodasBtn">Ver Todas (${SUBJECTS_FLAT.length})</button>
-          </div>
-          <!-- Dropdown menu para Ver Todas -->
-          <div id="subjectsDropdown" class="subjects-panel" style="display: none; max-height: 400px; overflow-y: auto;">
-            <h4 style="margin-bottom: var(--spacing-md);">Selecciona una materia:</h4>
-            <div id="subjectsGrid" class="subject-group-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--spacing-md);">
-              <!-- Se llena dinámicamente -->
-            </div>
+            ${featuredButtons}
+            <button class="category-btn pill-button" id="verTodasBtn">Ver Todas (${flatSubjects.length})</button>
           </div>
         </section>
 
@@ -1234,9 +1422,6 @@ class EstudiusApp {
 
     // Event listener para "Ver Todas" dropdown
     const verTodasBtn = document.getElementById('verTodasBtn');
-    const subjectsDropdown = document.getElementById('subjectsDropdown');
-    const subjectsGrid = document.getElementById('subjectsGrid');
-
     // Nuevo comportamiento: expandir/colapsar el grid de materias en el mismo lugar
     verTodasBtn.addEventListener('click', () => {
       const categoriesGrid = document.querySelector('.categories-grid');
@@ -1244,11 +1429,11 @@ class EstudiusApp {
 
       if (!isExpanded) {
         // Construir HTML por categorías (ordenadas)
-        const categoriesHtml = Object.keys(SUBJECTS).map(category => {
-          const subjects = Array.isArray(SUBJECTS[category]) ? [...SUBJECTS[category]].sort((a,b) => a.localeCompare(b, 'es')) : [];
-          const subjectsBtns = subjects.map(s => `<button class="category-btn pill-button" data-filter-subject="${s}">${s}</button>`).join('');
+        const categoriesHtml = this.subjectGroups.map((category) => {
+          const subjects = Array.isArray(category.items) ? [...category.items].sort((a, b) => a.name.localeCompare(b.name, 'es')) : [];
+          const subjectsBtns = subjects.map((item) => `<button class="category-btn pill-button" data-filter-subject="${item.name}">${item.icon || '📘'} ${item.name}</button>`).join('');
           return `<div class="expanded-category" style="margin-bottom: var(--spacing-lg);">
-                    <h4 style="margin-bottom: var(--spacing-sm); color: var(--isotipo-dark); font-weight: 800;">${category}</h4>
+                    <h4 style="margin-bottom: var(--spacing-sm); color: var(--isotipo-dark); font-weight: 800;">${category.name}</h4>
                     <div class="expanded-subjects subject-group-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--spacing-sm);">${subjectsBtns}</div>
                   </div>`;
         }).join('');
@@ -1277,18 +1462,7 @@ class EstudiusApp {
         // Listener para ver menos
         const verMenosBtn = document.getElementById('verMenosBtn');
         verMenosBtn.addEventListener('click', (e) => {
-          // Restaurar grid original (las 6 botones y Ver Todas)
-          categoriesGrid.innerHTML = `
-            <button class="category-btn pill-button" data-filter-subject="Programación">Programación</button>
-            <button class="category-btn pill-button" data-filter-subject="Matemática">Matemática</button>
-            <button class="category-btn pill-button" data-filter-subject="Inglés">Inglés</button>
-            <button class="category-btn pill-button" data-filter-subject="Historia">Historia</button>
-            <button class="category-btn pill-button" data-filter-subject="Física">Física</button>
-            <button class="category-btn pill-button" id="verTodasBtn">Ver Todas</button>
-          `;
-
           categoriesGrid.classList.remove('expanded-all-subjects');
-          // Rebind original event listeners (simple approach: re-render page controls)
           this.renderPage();
         });
       }
@@ -1701,7 +1875,7 @@ class EstudiusApp {
               <div class="form-row">
                 <div class="form-group required">
                   <label for="classSize">Cantidad de Alumnos</label>
-                  <input type="number" id="classSize" name="classSize" min="1" max="29" required />
+                  <input type="number" id="classSize" name="classSize" min="1" max="40" required />
                   <div class="form-error"></div>
                 </div>
 
@@ -1728,7 +1902,7 @@ class EstudiusApp {
               </div>
 
               <div class="form-group" id="locationGroup" style="display: none;">
-                <label for="location">Ubicación <span style="color: red;">*</span></label>
+                <label for="location">Ubicación</label>
                 <input type="text" id="location" name="location" />
                 <div class="form-error"></div>
               </div>
@@ -1774,9 +1948,11 @@ class EstudiusApp {
       const checked = Array.from(document.querySelectorAll('input[name="modalities"]:checked')).map(c => c.value);
       if (checked.includes('presencial')) {
         locationGroup.style.display = 'block';
+        locationGroup.classList.add('required');
         document.getElementById('location').required = true;
       } else {
         locationGroup.style.display = 'none';
+        locationGroup.classList.remove('required');
         document.getElementById('location').required = false;
       }
     }));
@@ -1855,7 +2031,7 @@ class EstudiusApp {
     if (subject_checkboxes.length === 0) errors.push('Debes seleccionar al menos una materia');
     if (!description) errors.push('La descripción del profesor es requerida');
     if (!curriculum) errors.push('El temario/currículo es requerido');
-    if (isNaN(classSize) || classSize < 1 || classSize > 29) errors.push('La cantidad de alumnos debe estar entre 1 y 29');
+    if (isNaN(classSize) || classSize < 1 || classSize > 40) errors.push('La cantidad de alumnos debe estar entre 1 y 40');
     if (!modalities || modalities.length === 0) errors.push('La modalidad es requerida');
     if (!schedules) errors.push('Los horarios son requeridos');
     if (Array.isArray(modalities) && modalities.includes('presencial') && !location) errors.push('La ubicación es requerida para clases presenciales');
@@ -1874,13 +2050,14 @@ class EstudiusApp {
 
   async loadSubjectsForForm() {
     const container = document.getElementById('subjectsContainer');
+    container.innerHTML = '';
     
-    for (const [category, subjects] of Object.entries(SUBJECTS)) {
+    for (const category of this.subjectGroups) {
       const categoryDiv = document.createElement('div');
       categoryDiv.style.marginBottom = 'var(--spacing-lg)';
 
       const categoryTitle = document.createElement('h4');
-      categoryTitle.textContent = category;
+      categoryTitle.textContent = category.name;
       categoryTitle.style.color = 'var(--isotipo-dark)';
       categoryTitle.style.marginBottom = 'var(--spacing-sm)';
       categoryDiv.appendChild(categoryTitle);
@@ -1890,7 +2067,7 @@ class EstudiusApp {
       subjectsDiv.style.gridTemplateColumns = 'repeat(auto-fit, minmax(150px, 1fr))';
       subjectsDiv.style.gap = 'var(--spacing-md)';
 
-      subjects.forEach(subject => {
+      (category.items || []).forEach((subjectItem) => {
         const label = document.createElement('label');
         label.className = 'checkbox-item';
         label.style.cursor = 'pointer';
@@ -1898,12 +2075,12 @@ class EstudiusApp {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.name = 'subjects';
-        checkbox.value = subject;
+        checkbox.value = subjectItem.name;
 
         const labelText = document.createElement('span');
         labelText.style.margin = '0';
         labelText.style.fontWeight = '400';
-        labelText.textContent = subject;
+        labelText.textContent = `${subjectItem.icon || '📘'} ${subjectItem.name}`;
 
         label.appendChild(checkbox);
         label.appendChild(labelText);
@@ -1981,8 +2158,8 @@ class EstudiusApp {
     }
 
     if (!validateClassSize(formData.classSize)) {
-      errors.push('La cantidad de alumnos debe ser un número entre 1 y 29');
-      setFieldError('classSize', 'Cantidad debe estar entre 1 y 29');
+      errors.push('La cantidad de alumnos debe ser un número entre 1 y 40');
+      setFieldError('classSize', 'Cantidad debe estar entre 1 y 40');
       hasErrors = true;
     }
 
@@ -2205,6 +2382,14 @@ class EstudiusApp {
       const isAdmin = this.currentUser && this.currentUser.role === 'admin';
       const isUser = this.currentUser && this.currentUser.role === 'user';
 
+      const subjectIconMap = this.getSubjectIconMap();
+      const subjectsListHtml = (Array.isArray(teacher.subjects) ? teacher.subjects : []).map((subject) => `
+        <div class="subject-detail-pill">
+          <span>${subjectIconMap.get(subject) || '📘'}</span>
+          <span>${subject}</span>
+        </div>
+      `).join('');
+
       const contactBlockHtml = isAdmin ? `
           <div class="detail-note">
             <strong>Información de contacto:</strong>
@@ -2275,10 +2460,6 @@ class EstudiusApp {
                   <span class="detail-info-value">${parseInt(teacher.classSize) === 1 ? 'Clases particulares' : `Clases grupales • ${teacher.classSize} alumnos`}</span>
                 </div>
                 <div class="detail-info-item">
-                  <span class="detail-info-label">Materias:</span>
-                  <span class="detail-info-value">${teacher.subjects.join(', ')}</span>
-                </div>
-                <div class="detail-info-item">
                   <span class="detail-info-label">Horarios:</span>
                   <span class="detail-info-value">${teacher.schedules}</span>
                 </div>
@@ -2288,6 +2469,11 @@ class EstudiusApp {
                   <span class="detail-info-value">${teacher.location}</span>
                 </div>
                 ` : ''}
+              </div>
+
+              <div class="detail-info-section subjects-section">
+                <h3>Materias</h3>
+                <div class="subject-detail-grid subject-detail-grid-large">${subjectsListHtml}</div>
               </div>
 
               <div class="detail-info-section">
@@ -2338,13 +2524,20 @@ class EstudiusApp {
   async showEditTeacherPage(teacher) {
     const main = document.querySelector('main');
 
-    // Construir las opciones de materias con marcado según el profesor
-    const subjectsOptions = SUBJECTS_FLAT.map(subject => `
-      <label style="display: inline-flex; align-items: center; margin-right: var(--spacing-lg); margin-bottom: var(--spacing-sm);">
-        <input type="checkbox" name="subjects" value="${subject}" ${Array.isArray(teacher.subjects) && teacher.subjects.includes(subject) ? 'checked' : ''} />
-        <span style="margin-left: var(--spacing-sm); cursor: pointer;">${subject}</span>
-      </label>
-    `).join('');
+    const subjectsOptions = this.subjectGroups.map((category) => {
+      const items = (category.items || []).map((item) => `
+        <label style="display: inline-flex; align-items: center; margin-right: var(--spacing-lg); margin-bottom: var(--spacing-sm);">
+          <input type="checkbox" name="subjects" value="${item.name}" ${Array.isArray(teacher.subjects) && teacher.subjects.includes(item.name) ? 'checked' : ''} />
+          <span style="margin-left: var(--spacing-sm); cursor: pointer;">${item.icon || '📘'} ${item.name}</span>
+        </label>
+      `).join('');
+      return `
+        <div style="margin-bottom: var(--spacing-lg);">
+          <h4 style="margin-bottom: var(--spacing-sm); color: var(--isotipo-dark); font-weight: 700;">${category.name}</h4>
+          <div style="display: flex; flex-wrap: wrap;">${items}</div>
+        </div>
+      `;
+    }).join('');
 
     main.innerHTML = `
       <div class="detail-header">
@@ -2402,7 +2595,10 @@ class EstudiusApp {
 
               <div class="form-group required">
                 <label>Materias</label>
-                <div class="form-group-checkbox" style="display: flex; flex-wrap: wrap;">${subjectsOptions}</div>
+                <button type="button" id="toggleEditSubjects" style="background: #587D71; color: white; border: none; padding: var(--spacing-sm) var(--spacing-md); border-radius: var(--border-radius); cursor: pointer; margin-bottom: var(--spacing-md);">
+                  <span id="toggleEditSubjectsIcon">▼</span> Seleccionar Materias
+                </button>
+                <div id="editSubjectsContainer" class="form-group-checkbox" style="display: block;">${subjectsOptions}</div>
                 <div class="form-error"></div>
               </div>
 
@@ -2419,7 +2615,7 @@ class EstudiusApp {
               </div>
 
               <div class="form-row">
-                <div class="form-group">
+                <div class="form-group required">
                   <label>Modalidad</label>
                   <div style="display: flex; gap: var(--spacing-md); align-items: center;">
                     <label class="filter-chip">
@@ -2436,7 +2632,7 @@ class EstudiusApp {
 
                 <div class="form-group required">
                   <label for="classSize">Cantidad de Alumnos</label>
-                  <input type="number" id="classSize" name="classSize" min="1" max="30" value="${teacher.classSize}" required />
+                  <input type="number" id="classSize" name="classSize" min="1" max="40" value="${teacher.classSize}" required />
                   <div class="form-error"></div>
                 </div>
 
@@ -2470,20 +2666,20 @@ class EstudiusApp {
       </div>
     `;
 
-    // Cargar materias dinámicamente
-    const subjectsContainer = document.querySelector('.form-group-checkbox');
-    if (subjectsContainer) {
-      subjectsContainer.innerHTML = SUBJECTS_FLAT.map(subject => `
-        <label class="checkbox-item" style="display: inline-flex; align-items: center; margin-right: var(--spacing-lg); margin-bottom: var(--spacing-sm);">
-          <input type="checkbox" name="subjects" value="${subject}" ${teacher.subjects.includes(subject) ? 'checked' : ''} />
-          <span style="margin-left: var(--spacing-sm); cursor: pointer;">${subject}</span>
-        </label>
-      `).join('');
-    }
-
     // Agregar listener para submit del formulario
     const editForm = document.getElementById('editTeacherForm');
     if (editForm) {
+      const toggleEditSubjects = document.getElementById('toggleEditSubjects');
+      const toggleEditSubjectsIcon = document.getElementById('toggleEditSubjectsIcon');
+      const editSubjectsContainer = document.getElementById('editSubjectsContainer');
+      if (toggleEditSubjects && toggleEditSubjectsIcon && editSubjectsContainer) {
+        toggleEditSubjects.addEventListener('click', () => {
+          const isVisible = editSubjectsContainer.style.display !== 'none';
+          editSubjectsContainer.style.display = isVisible ? 'none' : 'block';
+          toggleEditSubjectsIcon.textContent = isVisible ? '▶' : '▼';
+        });
+      }
+
       editForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         await this.handleEditTeacher(teacher.id);
@@ -2535,7 +2731,7 @@ class EstudiusApp {
       subjects: [subjects.length === 0, 'Debes seleccionar al menos una materia'],
       description: [!updateData.description, 'La descripción es requerida'],
       curriculum: [!updateData.curriculum, 'El temario es requerido'],
-      classSize: [!validateClassSize(updateData.classSize), 'La cantidad de alumnos debe estar entre 1 y 30'],
+      classSize: [!validateClassSize(updateData.classSize), 'La cantidad de alumnos debe estar entre 1 y 40'],
       schedules: [!updateData.schedules, 'Los horarios son requeridos']
     };
 
