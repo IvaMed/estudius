@@ -103,6 +103,18 @@ class TeacherAPI {
   }
 
   /**
+   * Obtener materias agrupadas por categorías
+   */
+  static async getGroupedSubjects() {
+    try {
+      return await httpRequest('GET', `${API_BASE_URL}/subjects/grouped`);
+    } catch (error) {
+      console.error('Error al obtener materias agrupadas:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Buscar profesores
    */
   static async searchTeachers(filters) {
@@ -374,20 +386,20 @@ class AdminAPI {
     return await response.json();
   }
 
-  static async createFeatureCategory(token, type, name) {
+  static async createFeatureCategory(token, type, name, icon) {
     const response = await fetch(`${API_BASE_URL}/admin/features/categories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ type, name })
+      body: JSON.stringify({ type, name, icon })
     });
     return await response.json();
   }
 
-  static async updateFeatureCategory(token, id, name) {
+  static async updateFeatureCategory(token, id, name, icon) {
     const response = await fetch(`${API_BASE_URL}/admin/features/categories/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ name })
+      body: JSON.stringify({ name, icon })
     });
     return await response.json();
   }
@@ -400,11 +412,11 @@ class AdminAPI {
     return await response.json();
   }
 
-  static async createFeatureItem(token, categoryId, name) {
+  static async createFeatureItem(token, categoryId, name, icon) {
     const response = await fetch(`${API_BASE_URL}/admin/features/items`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ categoryId, name })
+      body: JSON.stringify({ categoryId, name, icon })
     });
     return await response.json();
   }

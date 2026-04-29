@@ -309,7 +309,7 @@ function validateAge(age) {
  */
 function validateClassSize(size) {
   const sizeInt = parseInt(size);
-  return sizeInt > 0 && sizeInt < 30;
+  return sizeInt > 0 && sizeInt <= 40;
 }
 
 /**

@@ -28,6 +28,12 @@ function requireAdmin(req, res, next) {
   return res.status(403).json({ success: false, message: 'Acceso denegado: se requiere rol admin' });
 }
 
+function requireSuperAdmin(req, res, next) {
+  // Super admin is the seeded admin account (admin@gmail.com)
+  if (req.user && req.user.email && req.user.email.toLowerCase() === 'admin@gmail.com') return next();
+  return res.status(403).json({ success: false, message: 'Acceso denegado: se requiere super-admin' });
+}
+
 function requireUserRole(req, res, next) {
   if (req.user && req.user.role === 'user') return next();
   return res.status(403).json({ success: false, message: 'Acceso denegado: se requiere cuenta de usuario' });
@@ -37,4 +43,6 @@ module.exports = {
   authenticate,
   requireAdmin,
   requireUserRole,
+  requireSuperAdmin,
 };
+

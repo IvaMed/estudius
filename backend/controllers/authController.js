@@ -41,7 +41,34 @@ class AuthController {
       }
 
       const passwordHash = bcrypt.hashSync(password, 10);
-      const userId = await UserRepository.create({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.toLowerCase().trim(), passwordHash, role: 'user' });
+      // Elegir color de avatar aleatorio y persistente por cuenta.
+      // Intentar que no haya dos cuentas con la misma inicial que compartan color.
+      const palette = ['#587D71','#8EA8C3','#F9FFE9','#274580','#1C2E57','#FFDB43','#4CAF50','#FFC107','#F44336','#2196F3','#9C27B0','#00BCD4'];
+      const initial = (firstName || '').trim().charAt(0).toUpperCase() || '';
+      let color = null;
+      if (initial) {
+        const used = await UserRepository.getColorsByInitial(initial);
+        const usedSet = new Set((used || []).map(s => String(s).toLowerCase()));
+        const available = palette.filter(c => !usedSet.has(String(c).toLowerCase()));
+        if (available.length > 0) {
+          // Elegir aleatoriamente entre los disponibles
+          color = available[Math.floor(Math.random() * available.length)];
+        } else {
+          // Si se agotó la paleta para esa inicial, generar un color hex aleatorio
+          // que no coincida con los ya usados para esa inicial (intentos limitados)
+          for (let i = 0; i < 30; i++) {
+            const rand = '#' + Math.floor(Math.random() * 0xFFFFFF).toString(16).padStart(6, '0');
+            if (!usedSet.has(rand.toLowerCase())) { color = rand; break; }
+          }
+          // Si por alguna razón no pudimos generar uno distinto, tomar cualquiera de la paleta al azar
+          if (!color) color = palette[Math.floor(Math.random() * palette.length)];
+        }
+      } else {
+        // No hay inicial válida: asignar color aleatorio de la paleta
+        color = palette[Math.floor(Math.random() * palette.length)];
+      }
+
+      const userId = await UserRepository.create({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.toLowerCase().trim(), passwordHash, role: 'user', color });
 
       const user = await UserRepository.getById(userId);
       const token = jwt.sign({ id: user.id, email: user.email, role: user.role, firstName: user.firstName, lastName: user.lastName }, SECRET, { expiresIn: '7d' });

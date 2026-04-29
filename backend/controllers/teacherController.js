@@ -5,6 +5,7 @@
 const TeacherService = require('../services/teacherService');
 const path = require('path');
 const fs = require('fs');
+const { dbAll } = require('../database/db');
 
 class TeacherController {
   /**
@@ -283,6 +284,40 @@ class TeacherController {
       res.status(500).json({
         success: false,
         message: 'Error al obtener materias',
+        error: error.message
+      });
+    }
+  }
+
+  static async getSubjectCategories(req, res) {
+    try {
+      const categories = await dbAll(
+        'SELECT id, name, icon FROM feature_categories WHERE type = ? ORDER BY name ASC',
+        ['subject']
+      );
+      const result = [];
+      for (const category of categories) {
+        const items = await dbAll(
+          'SELECT id, name, icon FROM feature_items WHERE categoryId = ? ORDER BY position ASC, name ASC',
+          [category.id]
+        );
+        result.push({
+          id: category.id,
+          name: category.name,
+          icon: category.icon || '📁',
+          items: items.map((it) => ({ ...it, icon: it.icon || '📘' }))
+        });
+      }
+
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.error('Error en getSubjectCategories:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al obtener categorías de materias',
         error: error.message
       });
     }
