@@ -103,6 +103,18 @@ class TeacherAPI {
   }
 
   /**
+   * Obtener materias agrupadas por categorías
+   */
+  static async getGroupedSubjects() {
+    try {
+      return await httpRequest('GET', `${API_BASE_URL}/subjects/grouped`);
+    } catch (error) {
+      console.error('Error al obtener materias agrupadas:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Buscar profesores
    */
   static async searchTeachers(filters) {
@@ -160,6 +172,106 @@ class TeacherAPI {
       return await httpRequest('DELETE', `${API_BASE_URL}/teachers/${id}`);
     } catch (error) {
       console.error('Error al eliminar profesor:', error);
+      throw error;
+    }
+  }
+}
+
+class AuthAPI {
+  static async register(data) {
+    try {
+      return await httpRequest('POST', `${API_BASE_URL}/auth/register`, data);
+    } catch (error) {
+      console.error('Error en AuthAPI.register:', error);
+      throw error;
+    }
+  }
+
+  static async login(data) {
+    try {
+      return await httpRequest('POST', `${API_BASE_URL}/auth/login`, data);
+    } catch (error) {
+      console.error('Error en AuthAPI.login:', error);
+      throw error;
+    }
+  }
+
+  static async me(token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/me`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('Error en AuthAPI.me:', error);
+      throw error;
+    }
+  }
+
+  static async changePassword(token, data) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+      });
+      const text = await response.text();
+      let json;
+      try { json = text ? JSON.parse(text) : {}; } catch (e) { json = null; }
+      if (!response.ok) {
+        const message = (json && json.message) ? json.message : (text || 'Error cambiando contraseña');
+        const err = new Error(message);
+        err.details = json || { raw: text };
+        throw err;
+      }
+      return json || { success: true };
+    } catch (error) {
+      console.error('Error en AuthAPI.changePassword:', error);
+      throw error;
+    }
+  }
+}
+
+class BookingAPI {
+  static async createBooking(token, bookingData) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bookings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(bookingData)
+      });
+
+      const json = await response.json();
+      if (!response.ok) {
+        const error = new Error(json.message || 'Error creando reserva');
+        error.details = json;
+        throw error;
+      }
+      return json;
+    } catch (error) {
+      console.error('Error en BookingAPI.createBooking:', error);
+      throw error;
+    }
+  }
+
+  static async getMyBookings(token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bookings/my`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('Error en BookingAPI.getMyBookings:', error);
       throw error;
     }
   }
@@ -223,3 +335,106 @@ const SUBJECTS_FLAT = (() => {
   }
   return [...new Set(allSubjects)].sort();
 })();
+
+class AdminAPI {
+  static async listUsers(token, page = 1, pageSize = 10, search = '') {
+    const params = new URLSearchParams();
+    params.append('page', String(page));
+    params.append('pageSize', String(pageSize));
+    if (search) params.append('search', search);
+    const response = await fetch(`${API_BASE_URL}/admin/users?${params.toString()}`, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return await response.json();
+  }
+
+  static async updateUserRole(token, id, role) {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ role })
+    });
+    return await response.json();
+  }
+
+  static async setUserPassword(token, id, newPassword) {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${id}/set-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ newPassword })
+    });
+    return await response.json();
+  }
+
+  static async deleteUser(token, id) {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return await response.json();
+  }
+
+  // Features (categories/items)
+  static async listFeatures(token, type = 'subject') {
+    const params = new URLSearchParams();
+    if (type) params.append('type', type);
+    const response = await fetch(`${API_BASE_URL}/admin/features?${params.toString()}`, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return await response.json();
+  }
+
+  static async createFeatureCategory(token, type, name, icon) {
+    const response = await fetch(`${API_BASE_URL}/admin/features/categories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ type, name, icon })
+    });
+    return await response.json();
+  }
+
+  static async updateFeatureCategory(token, id, name, icon) {
+    const response = await fetch(`${API_BASE_URL}/admin/features/categories/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ name, icon })
+    });
+    return await response.json();
+  }
+
+  static async deleteFeatureCategory(token, id) {
+    const response = await fetch(`${API_BASE_URL}/admin/features/categories/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return await response.json();
+  }
+
+  static async createFeatureItem(token, categoryId, name, icon) {
+    const response = await fetch(`${API_BASE_URL}/admin/features/items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ categoryId, name, icon })
+    });
+    return await response.json();
+  }
+
+  static async updateFeatureItem(token, id, data) {
+    const response = await fetch(`${API_BASE_URL}/admin/features/items/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(data)
+    });
+    return await response.json();
+  }
+
+  static async deleteFeatureItem(token, id) {
+    const response = await fetch(`${API_BASE_URL}/admin/features/items/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return await response.json();
+  }
+}

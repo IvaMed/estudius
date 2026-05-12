@@ -23,7 +23,6 @@ router.delete('/teachers/:id', authenticate, requireAdmin, TeacherController.del
 
 // Rutas de Utilidad
 router.get('/subjects', TeacherController.getAvailableSubjects);
-router.get('/subjects/grouped', TeacherController.getSubjectCategories);
 router.post('/upload', TeacherController.uploadPhoto);
 
 // Ruta de health check

@@ -8,6 +8,7 @@ const path = require('path');
 const teacherRoutes = require('./routes/teacherRoutes');
 const authRoutes = require('./routes/authRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -48,6 +49,12 @@ app.use('/api', authRoutes);
 app.use('/api', bookingRoutes);
 // Rutas de profesores
 app.use('/api', teacherRoutes);
+const featuresRoutes = require('./routes/featuresRoutes');
+
+// Rutas de administración
+app.use('/api', adminRoutes);
+// Montar rutas de características bajo /api/admin para mantener consistencia con frontend
+app.use('/api/admin', featuresRoutes);
 
 // Servir index.html en la raíz
 app.get('/', (req, res) => {

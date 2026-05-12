@@ -84,7 +84,7 @@ body {
 main {
   flex: 1;
   padding-top: 100px; /* Ajustado al header */
-  padding-bottom: 80px; /* Espacio para footer fijo (más reducido) */
+  padding-bottom: 140px; /* Más espacio para poder scrollear en detalle (footer fijo) */
   min-height: calc(100vh - 100px);
 }
 
@@ -212,6 +212,168 @@ header {
   background-color: var(--isotipo-darker);
 }
 
+/* PROFILE BUBBLE */
+.profile-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.profile-bubble {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  color: var(--color-white);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  border: 2px solid rgba(0,0,0,0.06);
+  user-select: none;
+}
+
+.profile-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  background: var(--color-white);
+  border: 1px solid var(--color-gray-medium);
+  padding: 8px;
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  min-width: 200px;
+  z-index: 2000;
+}
+
+/* ADMIN DROPDOWN (header-left) */
+.admin-wrapper {
+  position: relative;
+  display: inline-block;
+  margin-left: 8px;
+}
+
+.admin-button {
+  background: transparent;
+  border: 2px solid var(--isotipo-dark);
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-button:hover {
+  background: var(--isotipo-dark);
+  color: var(--color-white);
+}
+
+.admin-dropdown {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  background: var(--color-white);
+  border: 1px solid var(--color-gray-medium);
+  padding: 8px;
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  min-width: 200px;
+  z-index: 2000;
+  display: none;
+}
+
+.admin-dropdown-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.admin-dropdown-item:hover { background: var(--color-gray-light); }
+
+/* Small action buttons used in admin table */
+.admin-action-btn {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  border-radius: 6px;
+  font-weight: 700;
+}
+
+/* Back button for admin pages */
+.admin-back-btn, #adminBackBtn {
+  padding: 6px 10px;
+  font-size: 0.95rem;
+  border-radius: 8px;
+}
+
+/* Features management */
+.features-grid {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.feature-card {
+  background: white;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 12px;
+  min-width: 260px;
+  flex: 1 1 280px;
+}
+.feature-card input { width: 100%; box-sizing: border-box; }
+.feature-card .admin-action-btn { padding: 6px 8px; font-size: 0.85rem; margin-left:6px; }
+
+.inline-error {
+  color: var(--color-error);
+  font-size: 0.95rem;
+  margin-top: 8px;
+}
+
+.inline-error {
+  min-height: 20px; /* Reservar espacio para evitar salto de diseño */
+}
+
+.toggle-password {
+  margin-left: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--isotipo-dark);
+  font-weight: 700;
+}
+
+.detail-content {
+  align-items: flex-start;
+  gap: var(--spacing-lg);
+  display: flex;
+}
+
+
+.detail-images {
+  flex: 0 0 480px;
+  max-width: 480px;
+}
+
+.detail-image {
+  width: 100%;
+  height: 480px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--color-gray-light);
+}
+
+.detail-images img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.detail-note {
+  margin-top: 8px;
+}
+
 /* ========================================
    NAVEGACIÓN
    ======================================== */
@@ -293,6 +455,31 @@ footer {
 
 .footer-text p {
   margin: 0;
+}
+
+.footer-socials {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.footer-social-icon {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--isotipo-dark);
+  line-height: 1;
+  background: transparent;
+}
+
+.footer-social-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  display: block;
 }
 
 /* ========================================
@@ -986,6 +1173,32 @@ category-btn {
 .detail-info-value {
   color: var(--text-secondary);
   text-align: right;
+}
+
+.subject-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--spacing-sm);
+}
+
+.subject-detail-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-gray-medium);
+  border-radius: 9999px;
+  background: #f7faf9;
+}
+
+.subject-detail-grid-large {
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.subject-detail-grid-large .subject-detail-pill {
+  padding: 12px 14px;
+  font-size: 1.02rem;
 }
 
 /* ========================================

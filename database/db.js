@@ -23,19 +23,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
 // Habilitar foreign keys
 db.run('PRAGMA foreign_keys = ON');
 
-function inferSubjectIcon(name = '') {
-  const value = String(name || '').toLowerCase();
-  if (value.includes('matem') || value.includes('álgebra') || value.includes('algebra') || value.includes('estad')) return '📐';
-  if (value.includes('fís') || value.includes('fis') || value.includes('mecán') || value.includes('mecan') || value.includes('electr')) return '⚛️';
-  if (value.includes('quím') || value.includes('quim') || value.includes('biolog')) return '🧪';
-  if (value.includes('hist') || value.includes('geograf') || value.includes('cívica') || value.includes('civica') || value.includes('filos') || value.includes('psic') || value.includes('econom') || value.includes('derecho')) return '📚';
-  if (value.includes('program') || value.includes('algorit') || value.includes('base de datos') || value.includes('desarrollo web') || value.includes('ciber')) return '💻';
-  if (value.includes('inglés') || value.includes('ingles') || value.includes('franc') || value.includes('alem') || value.includes('ital') || value.includes('portugu') || value.includes('japon') || value.includes('chino')) return '🗣️';
-  if (value.includes('dibujo') || value.includes('pintura') || value.includes('música') || value.includes('musica')) return '🎨';
-  if (value.includes('marketing') || value.includes('admin')) return '📈';
-  return '📘';
-}
-
 // Función para inicializar la base de datos
 async function initializeDatabase() {
   try {
@@ -142,53 +129,6 @@ async function initializeDatabase() {
               console.error('Error sembrando admin:', err.message || err);
             }
 
-            // Migración: ampliar límite classSize a <= 40 si la tabla vieja usa < 30
-            try {
-              const tableInfo = await dbGet("SELECT sql FROM sqlite_master WHERE type='table' AND name='teachers'");
-              const tableSql = String(tableInfo && tableInfo.sql ? tableInfo.sql : '').toLowerCase();
-              if (tableSql.includes('classsize < 30')) {
-                await dbRun('BEGIN TRANSACTION');
-                await dbRun(`CREATE TABLE IF NOT EXISTS teachers_new (
-                  id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  firstName TEXT NOT NULL,
-                  lastName TEXT NOT NULL,
-                  age INTEGER NOT NULL CHECK(age > 0 AND age < 150),
-                  email TEXT NOT NULL UNIQUE,
-                  phone TEXT,
-                  description TEXT NOT NULL,
-                  curriculum TEXT NOT NULL,
-                  photo TEXT,
-                  classSize INTEGER NOT NULL CHECK(classSize > 0 AND classSize <= 40),
-                  subjects TEXT NOT NULL,
-                  modality TEXT NOT NULL CHECK(modality IN ('virtual', 'presencial')),
-                  modalities TEXT,
-                  schedules TEXT NOT NULL,
-                  location TEXT,
-                  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-                  updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-                  views INTEGER DEFAULT 0
-                )`);
-                await dbRun(`INSERT INTO teachers_new (
-                  id, firstName, lastName, age, email, phone, description, curriculum, photo, classSize,
-                  subjects, modality, modalities, schedules, location, createdAt, updatedAt, views
-                ) SELECT
-                  id, firstName, lastName, age, email, phone, description, curriculum, photo, classSize,
-                  subjects, modality, modalities, schedules, location, createdAt, updatedAt, views
-                FROM teachers`);
-                await dbRun('DROP TABLE teachers');
-                await dbRun('ALTER TABLE teachers_new RENAME TO teachers');
-                await dbRun('CREATE INDEX IF NOT EXISTS idx_email ON teachers(email)');
-                await dbRun('CREATE INDEX IF NOT EXISTS idx_subjects ON teachers(subjects)');
-                await dbRun('CREATE INDEX IF NOT EXISTS idx_modality ON teachers(modality)');
-                await dbRun('CREATE INDEX IF NOT EXISTS idx_views ON teachers(views)');
-                await dbRun('COMMIT');
-                console.log('[OK] Migración aplicada: classSize <= 40');
-              }
-            } catch (err) {
-              try { await dbRun('ROLLBACK'); } catch (e) { /* ignore */ }
-              console.error('Error migrando classSize a <= 40:', err.message || err);
-            }
-
             // Crear tablas para características (categorías + items) y sembrar valores por defecto
             try {
               await dbRun(`CREATE TABLE IF NOT EXISTS feature_categories (
@@ -196,7 +136,6 @@ async function initializeDatabase() {
                 type TEXT NOT NULL,
                 name TEXT NOT NULL,
                 slug TEXT,
-                icon TEXT,
                 createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
               )`);
 
@@ -205,60 +144,35 @@ async function initializeDatabase() {
                 categoryId INTEGER NOT NULL,
                 name TEXT NOT NULL,
                 slug TEXT,
-                icon TEXT,
                 position INTEGER DEFAULT 0,
                 createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (categoryId) REFERENCES feature_categories(id) ON DELETE CASCADE
               )`);
 
-              const categoryCols = await dbAll('PRAGMA table_info(feature_categories)');
-              const hasCategoryIcon = Array.isArray(categoryCols) && categoryCols.some(c => c.name === 'icon');
-              if (!hasCategoryIcon) {
-                await dbRun('ALTER TABLE feature_categories ADD COLUMN icon TEXT');
-              }
-
-              const itemCols = await dbAll('PRAGMA table_info(feature_items)');
-              const hasItemIcon = Array.isArray(itemCols) && itemCols.some(c => c.name === 'icon');
-              if (!hasItemIcon) {
-                await dbRun('ALTER TABLE feature_items ADD COLUMN icon TEXT');
-              }
-
               const cnt = await dbGet('SELECT COUNT(*) as cnt FROM feature_categories', []);
               if (!cnt || !cnt.cnt) {
                 const subjectsSeed = {
-                  'Materias escolares clásicas': { icon: '🏫', items: ['Matemática','Lengua','Historia','Geografía','Biología','Física','Química','Educación Cívica','Filosofía','Psicología','Economía'] },
-                  'Materias de nivel universitario': { icon: '🎓', items: ['Análisis Matemático','Álgebra Lineal','Estadística y probabilidad','Mecánica','Electrónica','Química Orgánica','Química Inorgánica','Marketing','Derecho','Administración'] },
-                  'Materias Informáticas': { icon: '💻', items: ['Programación','Desarrollo Web','Bases de Datos','Algoritmos','Ciberseguridad'] },
-                  'Idiomas': { icon: '🌍', items: ['Inglés','Portugués','Francés','Italiano','Alemán','Chino','Japonés'] },
-                  'Materias Artísticas': { icon: '🎨', items: ['Dibujo','Música','Pintura'] }
+                  'Materias escolares clásicas': ['Matemática','Lengua','Historia','Geografía','Biología','Física','Química','Educación Cívica','Filosofía','Psicología','Economía'],
+                  'Materias de nivel universitario': ['Análisis Matemático','Álgebra Lineal','Estadística y probabilidad','Mecánica','Electrónica','Química Orgánica','Química Inorgánica','Marketing','Derecho','Administración'],
+                  'Materias Informáticas': ['Programación','Desarrollo Web','Bases de Datos','Algoritmos','Ciberseguridad'],
+                  'Idiomas': ['Inglés','Portugués','Francés','Italiano','Alemán','Chino','Japonés'],
+                  'Materias Artísticas': ['Dibujo','Música','Pintura']
                 };
 
                 const slugify = s => String(s || '').toLowerCase().replace(/[^a-z0-9áéíóúñ\s-]/g,'').trim().replace(/\s+/g,'-');
 
-                for (const [catName, data] of Object.entries(subjectsSeed)) {
-                  const r = await dbRun('INSERT INTO feature_categories (type, name, slug, icon) VALUES (?, ?, ?, ?)', ['subject', catName, slugify(catName), data.icon]);
+                for (const [catName, items] of Object.entries(subjectsSeed)) {
+                  const r = await dbRun('INSERT INTO feature_categories (type, name, slug) VALUES (?, ?, ?)', ['subject', catName, slugify(catName)]);
                   const catId = r.id;
-                  for (const it of data.items) {
-                    await dbRun('INSERT INTO feature_items (categoryId, name, slug, icon) VALUES (?, ?, ?, ?)', [catId, it, slugify(it), '📘']);
+                  for (const it of items) {
+                    await dbRun('INSERT INTO feature_items (categoryId, name, slug) VALUES (?, ?, ?)', [catId, it, slugify(it)]);
                   }
                 }
-                console.log('[OK] Características sembradas (materias)');
-              }
 
-              // Eliminar modalidad como característica configurable
-              await dbRun("DELETE FROM feature_categories WHERE type = 'modality'");
-              // Backfill de íconos para materias existentes (emoji representativo)
-              const subjectItems = await dbAll(`
-                SELECT fi.id, fi.name, fi.icon
-                FROM feature_items fi
-                INNER JOIN feature_categories fc ON fc.id = fi.categoryId
-                WHERE fc.type = 'subject'
-              `);
-              for (const item of subjectItems || []) {
-                const currentIcon = String(item.icon || '').trim();
-                if (!currentIcon || currentIcon === '📘') {
-                  await dbRun('UPDATE feature_items SET icon = ? WHERE id = ?', [inferSubjectIcon(item.name), item.id]);
-                }
+                // Modalidades: crear categorías 'virtual' y 'presencial'
+                const m1 = await dbRun('INSERT INTO feature_categories (type, name, slug) VALUES (?, ?, ?)', ['modality', 'virtual', 'virtual']);
+                const m2 = await dbRun('INSERT INTO feature_categories (type, name, slug) VALUES (?, ?, ?)', ['modality', 'presencial', 'presencial']);
+                console.log('[OK] Características sembradas (materias y modalidades)');
               }
             } catch (err) {
               console.error('Error creando/sembrando características:', err.message || err);
