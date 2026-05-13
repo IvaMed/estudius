@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS teachers (
     subjects TEXT NOT NULL,           -- JSON array de materias
     modality TEXT NOT NULL CHECK(modality IN ('virtual', 'presencial')),
     modalities TEXT,                   -- JSON array de modalidades (p.ej. ["virtual","presencial"]) - nuevo
-    schedules TEXT NOT NULL,           -- Texto con horarios
+    schedules TEXT NOT NULL,           -- JSON: { version, slots[{dow,start,end}], notes? } — mínimo una franja
     location TEXT,                     -- Puede ser NULL si es virtual
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,

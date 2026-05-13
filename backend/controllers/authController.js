@@ -43,7 +43,7 @@ class AuthController {
       const passwordHash = bcrypt.hashSync(password, 10);
       // Elegir color de avatar aleatorio y persistente por cuenta.
       // Intentar que no haya dos cuentas con la misma inicial que compartan color.
-      const palette = ['#587D71','#8EA8C3','#F9FFE9','#274580','#1C2E57','#FFDB43','#4CAF50','#FFC107','#F44336','#2196F3','#9C27B0','#00BCD4'];
+      const palette = ['#587D71', '#8EA8C3', '#274580', '#1C2E57', '#2E6B55', '#4CAF50', '#C62828', '#1565C0', '#6A1B9A', '#00838F', '#E65100', '#5D4037'];
       const initial = (firstName || '').trim().charAt(0).toUpperCase() || '';
       let color = null;
       if (initial) {
@@ -71,7 +71,7 @@ class AuthController {
       const userId = await UserRepository.create({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.toLowerCase().trim(), passwordHash, role: 'user', color });
 
       const user = await UserRepository.getById(userId);
-      const token = jwt.sign({ id: user.id, email: user.email, role: user.role, firstName: user.firstName, lastName: user.lastName }, SECRET, { expiresIn: '7d' });
+      const token = jwt.sign({ id: user.id, email: user.email, role: user.role, firstName: user.firstName, lastName: user.lastName, color: user.color || null }, SECRET, { expiresIn: '7d' });
 
       return res.json({ success: true, message: 'Registro exitoso', token, user });
     } catch (error) {
@@ -98,7 +98,7 @@ class AuthController {
       }
 
       const safeUser = await UserRepository.getById(user.id);
-      const token = jwt.sign({ id: safeUser.id, email: safeUser.email, role: safeUser.role, firstName: safeUser.firstName, lastName: safeUser.lastName }, SECRET, { expiresIn: '7d' });
+      const token = jwt.sign({ id: safeUser.id, email: safeUser.email, role: safeUser.role, firstName: safeUser.firstName, lastName: safeUser.lastName, color: safeUser.color || null }, SECRET, { expiresIn: '7d' });
 
       return res.json({ success: true, message: 'Login exitoso', token, user: safeUser });
     } catch (error) {

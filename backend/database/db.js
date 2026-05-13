@@ -49,9 +49,36 @@ async function initializeDatabase() {
       } else {
         console.log('[OK] Base de datos inicializada correctamente');
 
+        try {
+          await dbRun(`CREATE TABLE IF NOT EXISTS user_favorites (
+            userId INTEGER NOT NULL,
+            teacherId INTEGER NOT NULL,
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (userId, teacherId),
+            FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (teacherId) REFERENCES teachers(id) ON DELETE CASCADE
+          )`);
+          await dbRun('CREATE INDEX IF NOT EXISTS idx_favorites_teacher ON user_favorites(teacherId)');
+        } catch (favErr) {
+          console.error('[WARN] Tabla user_favorites:', favErr.message || favErr);
+        }
+
+        try {
+          const bcols = await new Promise((resolve, reject) => {
+            db.all('PRAGMA table_info(bookings)', [], (e, rows) => (e ? reject(e) : resolve(rows)));
+          });
+          const hasSess = Array.isArray(bcols) && bcols.some((c) => c.name === 'sessionModality');
+          if (!hasSess) {
+            await dbRun('ALTER TABLE bookings ADD COLUMN sessionModality TEXT');
+            console.log('[OK] Columna sessionModality en bookings');
+          }
+        } catch (bmErr) {
+          console.error('[WARN] Migración sessionModality bookings:', bmErr.message || bmErr);
+        }
+
         // Palette de colores (evitar blanco/negro)
         const palette = [
-          '#587D71','#8EA8C3','#F9FFE9','#274580','#1C2E57','#FFDB43','#4CAF50','#FFC107','#F44336','#2196F3','#9C27B0','#00BCD4'
+          '#587D71', '#8EA8C3', '#274580', '#1C2E57', '#2E6B55', '#4CAF50', '#C62828', '#1565C0', '#6A1B9A', '#00838F', '#E65100', '#5D4037'
         ];
 
         const simpleHash = (s) => {
@@ -137,6 +164,19 @@ async function initializeDatabase() {
             }
           } catch (err) {
             console.error('Error asignando colores a usuarios existentes:', err.message || err);
+          }
+
+          try {
+            const r = await dbRun(
+              `UPDATE users SET color = '#274580' WHERE LOWER(TRIM(color)) IN (
+                '#f9ffe9','#ffffff','#fff','#fffff0','#fafafa','#fefefe','#f5f5f5','#fffacd','#fff8dc'
+              )`
+            );
+            if (r && r.changes > 0) {
+              console.log('[OK] Colores de avatar demasiado claros reemplazados:', r.changes);
+            }
+          } catch (e2) {
+            console.warn('[WARN] Migración colores claros:', e2.message || e2);
           }
             } catch (err) {
               console.error('Error sembrando admin:', err.message || err);
@@ -262,6 +302,61 @@ async function initializeDatabase() {
               }
             } catch (err) {
               console.error('Error creando/sembrando características:', err.message || err);
+            }
+
+            // Migración: horarios en texto libre o JSON incompleto -> formato estructurado v1
+            try {
+              const {
+                migrateLegacyScheduleText,
+                serializeScheduleForDb,
+                isAlreadyMigratedDbString,
+                canonicalSchedule
+              } = require('../lib/scheduleUtils');
+              const rows = await dbAll('SELECT id, schedules FROM teachers');
+              let updated = 0;
+              for (const row of rows || []) {
+                const raw = row.schedules;
+                if (isAlreadyMigratedDbString(raw)) continue;
+                let out;
+                try {
+                  const j = JSON.parse(String(raw));
+                  if (Array.isArray(j)) {
+                    out = serializeScheduleForDb({ version: 1, slots: j, flexible: false, notes: '' });
+                  } else if (j && typeof j === 'object' && Array.isArray(j.slots)) {
+                    out = serializeScheduleForDb(canonicalSchedule(j));
+                  } else {
+                    out = serializeScheduleForDb(migrateLegacyScheduleText(raw));
+                  }
+                } catch (_) {
+                  out = serializeScheduleForDb(migrateLegacyScheduleText(raw));
+                }
+                await dbRun('UPDATE teachers SET schedules = ? WHERE id = ?', [out, row.id]);
+                updated++;
+              }
+              if (updated > 0) {
+                console.log('[OK] Migración horarios estructurados aplicada a', updated, 'profesor(es)');
+              }
+
+              // Asegurar que ningún profesor quede sin franjas (p.ej. JSON flexible con slots vacíos)
+              try {
+                const { parseSchedulesField, serializeScheduleForDb } = require('../lib/scheduleUtils');
+                const allTeachers = await dbAll('SELECT id, schedules FROM teachers');
+                let norm = 0;
+                for (const row of allTeachers || []) {
+                  const out = serializeScheduleForDb(parseSchedulesField(row.schedules));
+                  if (out !== String(row.schedules)) {
+                    await dbRun('UPDATE teachers SET schedules = ? WHERE id = ?', [out, row.id]);
+                    norm++;
+                  }
+                }
+                if (norm > 0) {
+                  console.log('[OK] Normalización de horarios (mínimo una franja):', norm, 'profesor(es)');
+                }
+              } catch (err) {
+                console.error('Error normalizando horarios sin franjas:', err.message || err);
+              }
+            } catch (err) {
+              console.error('Error migrando horarios estructurados:', err.message || err);
             }
       }
     });

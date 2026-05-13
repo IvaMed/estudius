@@ -3,6 +3,7 @@
 // =====================================================
 
 const TeacherService = require('../services/teacherService');
+const BookingService = require('../services/bookingService');
 const path = require('path');
 const fs = require('fs');
 const { dbAll } = require('../database/db');
@@ -81,7 +82,12 @@ class TeacherController {
         subjects: Array.isArray(subjects) ? subjects : [],
         modality: finalModality,
         modalities: finalModalities,
-        schedules: schedules?.trim(),
+        schedules:
+          schedules !== undefined && schedules !== null
+            ? typeof schedules === 'string'
+              ? schedules.trim()
+              : schedules
+            : undefined,
         location: location?.trim() || null
       });
 
@@ -138,6 +144,35 @@ class TeacherController {
         message: 'Error al obtener profesores',
         error: error.message
       });
+    }
+  }
+
+  /**
+   * Cupos por día en un rango (público, para calendario de reservas)
+   * GET /api/teachers/:id/availability?from=YYYY-MM-DD&to=YYYY-MM-DD
+   */
+  static async getTeacherAvailability(req, res) {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const from = req.query && req.query.from ? String(req.query.from).trim() : '';
+      const to = req.query && req.query.to ? String(req.query.to).trim() : '';
+      if (!from || !to) {
+        return res.status(400).json({
+          success: false,
+          message: 'Indicá el rango con los parámetros from y to (formato YYYY-MM-DD)'
+        });
+      }
+      const data = await BookingService.getAvailability(id, from, to);
+      return res.json({ success: true, data });
+    } catch (error) {
+      if (error.code === 'NOT_FOUND') {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      if (error.code === 'BAD_RANGE') {
+        return res.status(400).json({ success: false, message: error.message });
+      }
+      console.error('Error en getTeacherAvailability:', error);
+      return res.status(500).json({ success: false, message: 'No se pudo calcular la disponibilidad' });
     }
   }
 
@@ -329,12 +364,17 @@ class TeacherController {
    */
   static async searchTeachers(req, res) {
     try {
-      const { modality, subject, search } = req.query;
+      const { modality, subject, search, dateFrom, dateTo, timeStart, timeEnd, dow } = req.query;
       
       const teachers = await TeacherService.searchTeachers({
         modality,
         subject,
-        search
+        search,
+        dateFrom,
+        dateTo,
+        timeStart,
+        timeEnd,
+        dow
       });
       
       res.json({

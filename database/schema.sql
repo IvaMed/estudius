@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS teachers (
     subjects TEXT NOT NULL,           -- JSON array de materias
     modality TEXT NOT NULL CHECK(modality IN ('virtual', 'presencial')),
     modalities TEXT,                   -- JSON array de modalidades (p.ej. ["virtual","presencial"]) - nuevo
-    schedules TEXT NOT NULL,           -- Texto con horarios
+    schedules TEXT NOT NULL,           -- JSON: { version, slots[{dow,start,end}], notes? } — mínimo una franja
     location TEXT,                     -- Puede ser NULL si es virtual
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     userId INTEGER NOT NULL,
     teacherId INTEGER NOT NULL,
     datetime TEXT NOT NULL,
+    sessionModality TEXT,
     message TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
@@ -62,6 +63,18 @@ CREATE TABLE IF NOT EXISTS bookings (
 
 CREATE INDEX IF NOT EXISTS idx_bookings_user ON bookings(userId);
 CREATE INDEX IF NOT EXISTS idx_bookings_teacher ON bookings(teacherId);
+
+-- Favoritos por usuario (sin límite de cantidad)
+CREATE TABLE IF NOT EXISTS user_favorites (
+    userId INTEGER NOT NULL,
+    teacherId INTEGER NOT NULL,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (userId, teacherId),
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (teacherId) REFERENCES teachers(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_favorites_teacher ON user_favorites(teacherId);
 
 -- Tabla de auditoría (opcional para futuro)
 CREATE TABLE IF NOT EXISTS teacher_logs (
