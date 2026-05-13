@@ -25,7 +25,15 @@ class EstudiusApp {
       subject: null,
       modalities: [] // array de modalidades seleccionadas
     };
+
+    /** Filtro compacto día de semana + franja (home y listado) */
+    this.barScheduleFilter = null;
     
+    /** @type {Set<number>} */
+    this.favoriteTeacherIds = new Set();
+    /** Estado del calendario de reserva en detalle de profesor */
+    this._teacherDetailCal = null;
+
     this.init();
   }
 
@@ -34,7 +42,7 @@ class EstudiusApp {
     await this.loadAuthState();
     await this.loadSubjectGroups();
     this.setupEventListeners();
-    this.renderPage();
+    await this.handleRouteChange();
     this.loadTeachers();
   }
 
@@ -105,7 +113,7 @@ class EstudiusApp {
     if (!headerRight) return;
 
     if (this.currentUser) {
-      const initial = (this.currentUser.firstName || 'U').charAt(0).toUpperCase();
+      const initial = typeof userAvatarInitial === 'function' ? userAvatarInitial(this.currentUser) : (this.currentUser.firstName || 'U').charAt(0).toUpperCase();
       headerRight.innerHTML = `
         <div class="profile-wrapper">
           <div id="profileBubble" class="profile-bubble">${initial}</div>
@@ -113,6 +121,8 @@ class EstudiusApp {
             <div style="padding: 8px 12px; font-weight: 700;">${this.currentUser.firstName} ${this.currentUser.lastName}</div>
             <div style="padding: 4px 12px; font-size: 0.85rem; color: #666;">${this.currentUser.email}</div>
             <div style="padding: 8px 12px; display:flex; gap:8px; flex-direction:column;">
+              ${this.currentUser.role === 'user' ? '<a href="#my-bookings" class="btn btn-link" style="text-align:left;">Mis clases reservadas</a>' : ''}
+              <a href="#favorites" class="btn btn-link" style="text-align:left;">Favoritos</a>
               <button id="changePwBtn" class="btn btn-link" style="text-align:left;">Cambiar contraseña</button>
               <button id="logoutBtn" class="btn btn-link" style="text-align:left;">Cerrar sesión</button>
             </div>
@@ -135,6 +145,13 @@ class EstudiusApp {
           }
         } catch (e) {
           bubble.style.backgroundColor = '#587D71';
+        }
+
+        try {
+          const bg = bubble.style.backgroundColor || this.currentUser.color || '#587D71';
+          bubble.style.color = typeof contrastingAvatarTextColor === 'function' ? contrastingAvatarTextColor(bg) : '#ffffff';
+        } catch (e) {
+          bubble.style.color = '#ffffff';
         }
 
         bubble.onclick = (e) => {
@@ -215,6 +232,8 @@ class EstudiusApp {
         if (adminWrapper) adminWrapper.remove();
       }
     } catch (e) { /* ignore */ }
+
+    this.syncNavAuthItems();
   }
 
   showAuthModal(mode = 'login', opts = {}) {
@@ -246,6 +265,7 @@ class EstudiusApp {
       </form>
     ` : `
       <h2>Iniciar sesión</h2>
+      <p class="auth-login-hint">Si no tienes una cuenta, <button type="button" id="switchToRegisterFromLogin" class="btn btn-link">créala aquí</button>.</p>
       <form id="authForm">
         <div class="form-group required"><label>Email</label><input name="email" type="email" required /></div>
         <div class="form-group required"><label>Contraseña</label><input name="password" type="password" required /></div>
@@ -267,6 +287,16 @@ class EstudiusApp {
     const form = document.getElementById('authForm');
     const cancelBtn = document.getElementById('cancelAuthBtn');
     if (cancelBtn) cancelBtn.addEventListener('click', () => this.closeAuthModal());
+
+    if (mode === 'login') {
+      const sw = document.getElementById('switchToRegisterFromLogin');
+      if (sw) {
+        sw.addEventListener('click', () => {
+          this.closeAuthModal();
+          setTimeout(() => this.showAuthModal('register'), 120);
+        });
+      }
+    }
 
     // Prefill email if provided in opts
     try {
@@ -378,7 +408,10 @@ class EstudiusApp {
 
   closeAuthModal() {
     const existing = document.getElementById('authModal');
-    if (existing) existing.remove();
+      if (existing) existing.remove(); 
+      // Clear any existing suggestions
+      const suggestions = document.getElementById('homeSearchSuggestions');
+      if (suggestions) suggestions.remove();
   }
 
   setAuth(token, user) {
@@ -388,6 +421,7 @@ class EstudiusApp {
     this.authToken = token;
     this.currentUser = user;
     this.updateHeaderAuthUI();
+    this.syncNavAuthItems();
     // Limpiar mensaje inline de reserva si existe
     try {
       const bookErr = document.getElementById('bookError');
@@ -407,6 +441,17 @@ class EstudiusApp {
 
   showScheduleModal(teacher) {
     this.closeScheduleModal();
+    const modOpts = this.bookingModalityOptions(teacher);
+    let modalityField = '';
+    if (modOpts.length >= 2) {
+      modalityField = `
+        <div class="form-group required"><label>Modalidad</label>
+          <div class="schedule-modality-radios">
+            <label class="booking-modality-label"><input type="radio" name="sessionModality" value="virtual" /> Virtual</label>
+            <label class="booking-modality-label"><input type="radio" name="sessionModality" value="presencial" /> Presencial</label>
+          </div>
+        </div>`;
+    }
     const overlay = document.createElement('div');
     overlay.id = 'scheduleModal';
     overlay.style.position = 'fixed';
@@ -429,6 +474,7 @@ class EstudiusApp {
       <h3>Agendar clase con ${teacher.firstName} ${teacher.lastName}</h3>
       <form id="scheduleForm">
         <div class="form-group required"><label>Fecha y hora</label><input name="datetime" type="datetime-local" required /></div>
+        ${modalityField}
         <div class="form-group"><label>Mensaje (opcional)</label><textarea name="message" rows="3"></textarea></div>
         <div style="display:flex; gap:8px; margin-top:12px;"><button type="submit" class="btn btn-primary">Reservar</button><button type="button" id="cancelScheduleBtn" class="btn btn-outline">Cancelar</button></div>
         <div id="scheduleErrors" style="margin-top:12px; color: #b00020;"></div>
@@ -451,7 +497,19 @@ class EstudiusApp {
       if (!data.datetime) { errorsEl.textContent = 'Selecciona fecha y hora'; return; }
 
       try {
-        await this.handleCreateBooking(teacher.id, data.datetime, data.message);
+        const dt = data.datetime || '';
+        const dateOnly = dt.indexOf('T') >= 0 ? dt.split('T')[0] : dt;
+        let sessionModality = null;
+        if (modOpts.length >= 2) {
+          sessionModality = data.sessionModality;
+          if (!sessionModality) {
+            errorsEl.textContent = 'Elegí si la clase será virtual o presencial';
+            return;
+          }
+        } else if (modOpts.length === 1) {
+          sessionModality = modOpts[0];
+        }
+        await this.handleCreateBooking(teacher.id, dateOnly, data.message, sessionModality);
         this.closeScheduleModal();
         showAlert('Clase agendada correctamente', 'success');
       } catch (err) {
@@ -553,9 +611,37 @@ class EstudiusApp {
     if (existing) existing.remove();
   }
 
-  async handleCreateBooking(teacherId, datetime, message) {
+  /** Modalidades que ofrece el profesor para una reserva (virtual / presencial). */
+  bookingModalityOptions(teacher) {
+    if (!teacher) return [];
+    let raw = [];
+    if (Array.isArray(teacher.modalities)) raw = teacher.modalities;
+    else if (teacher.modalities && typeof teacher.modalities === 'string') {
+      try {
+        const p = JSON.parse(teacher.modalities);
+        raw = Array.isArray(p) ? p : [];
+      } catch (_) {
+        raw = [];
+      }
+    }
+    if (!raw.length && teacher.modality) raw = [teacher.modality];
+    return [...new Set(raw)].filter((x) => x === 'virtual' || x === 'presencial');
+  }
+
+  async handleCreateBooking(teacherId, date, message, sessionModality) {
     if (!this.authToken) throw new Error('No autenticado');
-    const payload = { teacherId, datetime, message };
+    const tid = Number(teacherId);
+    if (!Number.isFinite(tid) || tid < 1) {
+      throw new Error('No se pudo identificar al profesor. Volvé a abrir la ficha del profesor e intentá de nuevo.');
+    }
+    const dateStr = date && String(date).trim();
+    if (!dateStr) {
+      throw new Error('Elegí un día con cupo en el calendario antes de confirmar.');
+    }
+    const payload = { teacherId: tid, date: dateStr, message: (message && String(message).trim()) || undefined };
+    if (sessionModality === 'virtual' || sessionModality === 'presencial') {
+      payload.sessionModality = sessionModality;
+    }
     const res = await BookingAPI.createBooking(this.authToken, payload);
     if (!res || !res.success) {
       const msg = (res && res.message) ? res.message : 'No se pudo crear la reserva';
@@ -563,6 +649,66 @@ class EstudiusApp {
       throw error;
     }
     return res.bookingId;
+  }
+
+  async refreshFavoriteIds() {
+    this.favoriteTeacherIds = new Set();
+    if (!this.authToken) return;
+    try {
+      const r = await FavoriteAPI.listIds(this.authToken);
+      if (r && r.success && Array.isArray(r.data)) {
+        r.data.forEach((id) => this.favoriteTeacherIds.add(Number(id)));
+      }
+    } catch (e) {
+      console.warn('refreshFavoriteIds', e);
+    }
+  }
+
+  syncNavAuthItems() {
+    const my = document.querySelector('.nav-my-classes');
+    const fav = document.querySelector('.nav-favorites');
+    if (my) my.style.display = this.currentUser && this.currentUser.role === 'user' ? '' : 'none';
+    if (fav) fav.style.display = this.currentUser ? '' : 'none';
+  }
+
+  async onFavoriteClick(teacherId, ev) {
+    if (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+    }
+    let tid = Number(teacherId);
+    if (!Number.isFinite(tid) || tid < 1) {
+      const btn = ev && ev.currentTarget && ev.currentTarget.closest && ev.currentTarget.closest('[data-fav-teacher-id]');
+      const raw = btn && btn.getAttribute('data-fav-teacher-id');
+      tid = raw ? parseInt(raw, 10) : NaN;
+    }
+    if (!Number.isFinite(tid) || tid < 1) {
+      showAlert('No se pudo identificar al profesor. Recargá la página e intentá de nuevo.', 'error');
+      return;
+    }
+    if (!this.authToken) {
+      showAlert('Iniciá sesión para usar favoritos', 'info');
+      this.showAuthModal('login');
+      return;
+    }
+    try {
+      const r = await FavoriteAPI.toggle(this.authToken, tid);
+      if (r && r.success) {
+        if (r.isFavorite) this.favoriteTeacherIds.add(tid);
+        else this.favoriteTeacherIds.delete(tid);
+        document.querySelectorAll(`[data-fav-teacher-id="${tid}"]`).forEach((el) => {
+          const on = this.favoriteTeacherIds.has(tid);
+          el.classList.toggle('is-favorite', on);
+          el.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        if (this.currentPage === 'favorites') {
+          const main = document.querySelector('main');
+          if (main) await this.renderFavoritesPage(main);
+        }
+      }
+    } catch (err) {
+      showAlert((err && err.message) || 'No se pudo actualizar el favorito', 'error');
+    }
   }
 
   setupEventListeners() {
@@ -595,7 +741,9 @@ class EstudiusApp {
     }
 
     // Manejo de cambio de hash (URL)
-    window.addEventListener('hashchange', () => this.handleRouteChange());
+    window.addEventListener('hashchange', () => {
+      this.handleRouteChange();
+    });
 
     // Cerrar menú de perfil y admin al hacer clic afuera
     document.addEventListener('click', (e) => {
@@ -617,29 +765,52 @@ class EstudiusApp {
     });
   }
 
-  handleRouteChange() {
-    const hash = window.location.hash.slice(1) || '/';
-    
+  async handleRouteChange() {
+    await this.refreshFavoriteIds();
+    const raw = window.location.hash.slice(1) || '/';
+    const hash = raw.replace(/^\//, '');
+
     if (hash.startsWith('teacher/')) {
-      const teacherId = hash.replace('teacher/', '');
-      this.showTeacherDetail(parseInt(teacherId));
+      const teacherId = parseInt(hash.replace('teacher/', ''), 10);
+      if (!Number.isNaN(teacherId)) await this.showTeacherDetail(teacherId);
     } else {
-      this.showPage(hash || 'home');
+      await this.showPage(hash || 'home');
     }
+    this.syncNavAuthItems();
   }
 
   navigateToHome() {
     window.location.hash = '';
-    this.showPage('home');
+    void this.showPage('home');
   }
 
-  showPage(pageName) {
+  async showPage(pageName) {
     // Protecciones por página
     if (pageName === 'add-teacher' && (!this.currentUser || this.currentUser.role !== 'admin')) {
       showAlert('Debes ser administrador para acceder a esta sección', 'error');
       this.currentPage = 'home';
-      this.renderPage();
+      await this.renderPage();
       return;
+    }
+
+    if (pageName === 'my-bookings') {
+      if (!this.currentUser || this.currentUser.role !== 'user') {
+        showAlert('Iniciá sesión como alumno para ver tus clases', 'info');
+        this.showAuthModal('login');
+        this.currentPage = 'home';
+        await this.renderPage();
+        return;
+      }
+    }
+
+    if (pageName === 'favorites') {
+      if (!this.currentUser) {
+        showAlert('Iniciá sesión para ver tus favoritos', 'info');
+        this.showAuthModal('login');
+        this.currentPage = 'home';
+        await this.renderPage();
+        return;
+      }
     }
 
     // Si entramos a una página de administración desde una página no-admin,
@@ -650,10 +821,10 @@ class EstudiusApp {
     }
 
     this.currentPage = pageName;
-    this.renderPage();
+    await this.renderPage();
   }
 
-  renderPage() {
+  async renderPage() {
     const main = document.querySelector('main');
     
     switch (this.currentPage) {
@@ -669,9 +840,15 @@ class EstudiusApp {
       case 'list-teachers':
         this.renderListTeachersPage(main);
         break;
+      case 'my-bookings':
+        await this.renderMyBookingsPage(main);
+        break;
+      case 'favorites':
+        await this.renderFavoritesPage(main);
+        break;
       case 'teacher-detail':
         if (this.currentTeacher) {
-          this.showTeacherDetail(this.currentTeacher.id);
+          await this.showTeacherDetail(this.currentTeacher.id);
         }
         break;
       case 'home':
@@ -684,7 +861,7 @@ class EstudiusApp {
     if (!this.currentUser || this.currentUser.role !== 'admin') {
       showAlert('Debes ser administrador para acceder a esta sección', 'error');
       this.currentPage = 'home';
-      this.renderPage();
+      await this.renderPage();
       return;
     }
 
@@ -776,8 +953,10 @@ class EstudiusApp {
         tr.style.padding = '8px 0';
         const nameCell = document.createElement('td');
         nameCell.style.padding = '12px 8px';
-        const initial = (u.firstName || 'U').charAt(0).toUpperCase();
-        const bubble = `<span style="display:inline-block; width:32px; height:32px; border-radius:50%; background:${u.color || '#587D71'}; color:#fff; text-align:center; line-height:32px; font-weight:700; margin-right:8px;">${initial}</span>`;
+        const initial = typeof userAvatarInitial === 'function' ? userAvatarInitial(u) : (u.firstName || 'U').charAt(0).toUpperCase();
+        const bg = u.color || '#587D71';
+        const fg = typeof contrastingAvatarTextColor === 'function' ? contrastingAvatarTextColor(bg) : '#fff';
+        const bubble = `<span style="display:inline-block; width:32px; height:32px; border-radius:50%; background:${bg}; color:${fg}; text-align:center; line-height:32px; font-weight:700; margin-right:8px;">${initial}</span>`;
         nameCell.innerHTML = `${bubble} ${u.firstName} ${u.lastName}`;
 
         const emailCell = document.createElement('td');
@@ -897,7 +1076,7 @@ class EstudiusApp {
     if (!this.currentUser || this.currentUser.role !== 'admin') {
       showAlert('Debes ser administrador para acceder a esta sección', 'error');
       this.currentPage = 'home';
-      this.renderPage();
+      await this.renderPage();
       return;
     }
 
@@ -1391,15 +1570,8 @@ class EstudiusApp {
 
     await this.loadRecommendedTeachers();
 
-    // Búsqueda dinámica (debounced)
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-      const debounced = debounce((e) => {
-        const q = (e.target.value || '').trim();
-        this.searchTeachers(q);
-      }, 250);
-      searchInput.addEventListener('input', debounced);
-    }
+    // Búsqueda dinámica (debounced) + autocomplete for home
+    setTimeout(() => this.setupHomeSearch(), 0);
 
     // Event listeners para categorías
     document.querySelectorAll('.category-btn').forEach(btn => {
@@ -1461,9 +1633,9 @@ class EstudiusApp {
 
         // Listener para ver menos
         const verMenosBtn = document.getElementById('verMenosBtn');
-        verMenosBtn.addEventListener('click', (e) => {
+        verMenosBtn.addEventListener('click', async (e) => {
           categoriesGrid.classList.remove('expanded-all-subjects');
-          this.renderPage();
+          await this.renderPage();
         });
       }
     });
@@ -1475,29 +1647,7 @@ class EstudiusApp {
         this.currentPage_pagination = 1;
         const selectedModalities = Array.from(document.querySelectorAll('.modality-filter-btn.active')).map(b => b.dataset.filterModality);
         this.filters.modalities = selectedModalities;
-        
-        let filtered = [...this.allTeachers];
-        
-        // Primero filtrar por materia si hay una seleccionada
-        if (this.filters.subject) {
-          filtered = filtered.filter(t => {
-            let subjects = t.subjects;
-            if (typeof subjects === 'string') {
-              subjects = JSON.parse(subjects || '[]');
-            }
-            return Array.isArray(subjects) && subjects.includes(this.filters.subject);
-          });
-        }
-        
-        // Luego filtrar por modalidad (soporta teacher.modalities array)
-        if (selectedModalities.length > 0) {
-          filtered = filtered.filter(t => {
-            const modalities = Array.isArray(t.modalities) ? t.modalities : (typeof t.modalities === 'string' ? JSON.parse(t.modalities || '[]') : (t.modality ? [t.modality] : []));
-            return Array.isArray(modalities) && modalities.some(m => selectedModalities.includes(m));
-          });
-        }
-        
-        this.displayTeachers(filtered);
+        this.rebuildHomeTeacherGrid();
       });
     });
   }
@@ -1538,35 +1688,9 @@ class EstudiusApp {
   filterBySubject(subject) {
     this.currentPage_pagination = 1;
     console.log('Filtrando por materia:', subject);
-    
-    // Guardar el filtro
+
     this.filters.subject = subject === 'all' || !subject ? null : subject;
-    
-    // Si es "all", mostrar todos
-    if (!this.filters.subject) {
-      this.displayTeachers(this.allTeachers);
-      return;
-    }
-
-    // Filtrar solo por la materia seleccionada
-    const filtered = this.allTeachers.filter(teacher => {
-      // Parsear subjects
-      let subjects = teacher.subjects;
-      if (typeof subjects === 'string') {
-        subjects = JSON.parse(subjects || '[]');
-      }
-      
-      // Verificar que sea array y contenga la materia
-      if (Array.isArray(subjects)) {
-        const hasSubject = subjects.includes(this.filters.subject);
-        return hasSubject;
-      }
-      
-      return false;
-    });
-
-    console.log(`Resultado: ${filtered.length} profesores de "${this.filters.subject}"`);
-    this.displayTeachers(filtered);
+    this.rebuildHomeTeacherGrid();
   }
 
   updateCategorySelectionUI(subject) {
@@ -1603,10 +1727,17 @@ class EstudiusApp {
 
       if (result.data && result.data.length > 0) {
         // Parse subjects and modalities from JSON string to arrays
-        this.allTeachers = result.data.map(teacher => ({
+        this.allTeachers = result.data.map((teacher) => ({
           ...teacher,
           subjects: typeof teacher.subjects === 'string' ? JSON.parse(teacher.subjects) : teacher.subjects,
-          modalities: teacher.modalities ? (typeof teacher.modalities === 'string' ? JSON.parse(teacher.modalities) : teacher.modalities) : (teacher.modality ? [teacher.modality] : [])
+          modalities: teacher.modalities
+            ? typeof teacher.modalities === 'string'
+              ? JSON.parse(teacher.modalities)
+              : teacher.modalities
+            : teacher.modality
+              ? [teacher.modality]
+              : [],
+          schedules: ScheduleUtils.parseSchedulesFromApi(teacher.schedules)
         }));
 
         // Inicialmente mezclar aleatoriamente la lista para la paginación
@@ -1633,12 +1764,154 @@ class EstudiusApp {
     this.displayTeachers(this.currentDisplayedTeachers);
   }
 
+  /**
+   * Home: reconstruye la lista según materia, modalidad (chips), texto en buscador y filtro de horario.
+   */
+  rebuildHomeTeacherGrid() {
+    if (this.currentPage !== 'home') return;
+    let filtered = [...(this.allTeachers || [])];
+
+    if (this.filters.subject) {
+      filtered = filtered.filter((t) => {
+        let subjects = t.subjects;
+        if (typeof subjects === 'string') subjects = JSON.parse(subjects || '[]');
+        return Array.isArray(subjects) && subjects.includes(this.filters.subject);
+      });
+    }
+
+    const selectedModalities = Array.from(document.querySelectorAll('.modality-filter-btn.active')).map(
+      (b) => b.dataset.filterModality
+    );
+    if (selectedModalities.length > 0) {
+      filtered = filtered.filter((t) => {
+        const modalities = Array.isArray(t.modalities)
+          ? t.modalities
+          : typeof t.modalities === 'string'
+            ? JSON.parse(t.modalities || '[]')
+            : t.modality
+              ? [t.modality]
+              : [];
+        return Array.isArray(modalities) && modalities.some((m) => selectedModalities.includes(m));
+      });
+    }
+
+    const qRaw = (document.getElementById('homeSearchInput')?.value || '').trim();
+    if (qRaw) {
+      filtered = filtered.filter((t) => {
+        let subjects = t.subjects;
+        if (typeof subjects === 'string') {
+          try {
+            subjects = JSON.parse(subjects || '[]');
+          } catch (_) {
+            subjects = [];
+          }
+        }
+        const subjStr = (Array.isArray(subjects) ? subjects : []).join(' ');
+        return (
+          normalizedIncludes(`${t.firstName} ${t.lastName}`, qRaw) ||
+          normalizedIncludes(t.description || '', qRaw) ||
+          normalizedIncludes(t.curriculum || '', qRaw) ||
+          normalizedIncludes(subjStr, qRaw)
+        );
+      });
+    }
+
+    this.currentPage_pagination = 1;
+    this.displayTeachers(filtered);
+  }
+
+  attachBarScheduleListeners(pageKind) {
+    const apply = document.getElementById('barSchApply');
+    const clear = document.getElementById('barSchClear');
+    if (!apply || !clear || apply.dataset.barBound === '1') return;
+    apply.dataset.barBound = '1';
+
+    apply.addEventListener('click', () => {
+      const dowVal = document.getElementById('barSchDow')?.value;
+      const t0 = document.getElementById('barSchFrom')?.value;
+      const t1 = document.getElementById('barSchTo')?.value;
+      if (!t0 || !t1) {
+        showAlert('Completá hora desde y hasta', 'error');
+        return;
+      }
+      const fs = ScheduleUtils.timeToMinutes(t0);
+      const fe = ScheduleUtils.timeToMinutes(t1);
+      if (fs == null || fe == null || fe <= fs) {
+        showAlert('La hora hasta debe ser mayor que la hora desde', 'error');
+        return;
+      }
+      if (dowVal === '' || dowVal == null) {
+        this.barScheduleFilter = { active: true, anyDay: true, timeStart: t0, timeEnd: t1 };
+      } else {
+        const dow = parseInt(String(dowVal), 10);
+        if (Number.isNaN(dow) || dow < 0 || dow > 6) {
+          showAlert('Día inválido', 'error');
+          return;
+        }
+        this.barScheduleFilter = { active: true, anyDay: false, dow, timeStart: t0, timeEnd: t1 };
+      }
+      if (pageKind === 'home') this.rebuildHomeTeacherGrid();
+      else this.refreshListTeachersView();
+    });
+
+    clear.addEventListener('click', () => {
+      this.barScheduleFilter = null;
+      const dowSel = document.getElementById('barSchDow');
+      if (dowSel) dowSel.value = '';
+      const tFrom = document.getElementById('barSchFrom');
+      const tTo = document.getElementById('barSchTo');
+      if (tFrom) tFrom.value = '00:00';
+      if (tTo) tTo.value = '23:59';
+      if (pageKind === 'home') this.rebuildHomeTeacherGrid();
+      else this.refreshListTeachersView();
+    });
+
+    this.syncBarScheduleUIFromState();
+  }
+
+  syncBarScheduleUIFromState() {
+    const dowEl = document.getElementById('barSchDow');
+    const t0 = document.getElementById('barSchFrom');
+    const t1 = document.getElementById('barSchTo');
+    if (!dowEl || !this.barScheduleFilter || !this.barScheduleFilter.active) return;
+    if (this.barScheduleFilter.anyDay) {
+      dowEl.value = '';
+    } else {
+      dowEl.value = String(this.barScheduleFilter.dow);
+    }
+    if (t0 && this.barScheduleFilter.timeStart) t0.value = this.barScheduleFilter.timeStart;
+    if (t1 && this.barScheduleFilter.timeEnd) t1.value = this.barScheduleFilter.timeEnd;
+  }
+
   displayTeachers(teachers) {
     const grid = document.getElementById('recommendedTeachers');
     grid.innerHTML = '';
 
-    // Guardar la lista actual (para paginación y acciones posteriores)
-    this.currentDisplayedTeachers = teachers || [];
+    let list = [...(teachers || [])];
+    if (this.barScheduleFilter && this.barScheduleFilter.active) {
+      const { anyDay, dow, timeStart, timeEnd } = this.barScheduleFilter;
+      if (timeStart && timeEnd) {
+        const fs = ScheduleUtils.timeToMinutes(timeStart);
+        const fe = ScheduleUtils.timeToMinutes(timeEnd);
+        if (fs != null && fe != null && fe > fs) {
+          if (anyDay) {
+            const allDows = [0, 1, 2, 3, 4, 5, 6];
+            list = list.filter((t) =>
+              ScheduleUtils.teacherMatchesAvailability(t.schedules, allDows, fs, fe)
+            );
+          } else if (dow !== '' && dow != null) {
+            const d = typeof dow === 'number' ? dow : parseInt(String(dow), 10);
+            if (!Number.isNaN(d)) {
+              list = list.filter((t) =>
+                ScheduleUtils.teacherMatchesDowWindow(t.schedules, d, fs, fe)
+              );
+            }
+          }
+        }
+      }
+    }
+
+    this.currentDisplayedTeachers = list;
 
     if (this.currentDisplayedTeachers.length === 0) {
       grid.innerHTML = '<p>No se encontraron profesores</p>';
@@ -1651,7 +1924,7 @@ class EstudiusApp {
     const paginatedTeachers = this.currentDisplayedTeachers.slice(start, end);
 
     paginatedTeachers.forEach(teacher => {
-      grid.appendChild(createTeacherCard(teacher, this.filters.subject));
+      grid.appendChild(createTeacherCard(teacher, this.filters.subject, this.favoriteTeacherIds));
     });
 
     // Renderizar paginación
@@ -1759,19 +2032,151 @@ class EstudiusApp {
     this.currentPage_pagination = 1;
     const q = (query || '').trim();
 
-    // If query is empty or only spaces, treat as no search: show shuffled results
     if (!q) {
       this.shuffleAndDisplay();
       return;
     }
 
-    const queryLower = q.toLowerCase();
-    const filtered = this.allTeachers.filter(t => {
-      const name = `${t.firstName} ${t.lastName}`.toLowerCase();
-      const desc = (t.description || '').toLowerCase();
-      return name.includes(queryLower) || desc.includes(queryLower);
+    this.rebuildHomeTeacherGrid();
+  }
+
+  /**
+   * Listado: combina búsqueda por texto (input) + filtro por calendario/horario si está activo.
+   */
+  getListTeachersFiltered() {
+    const input = document.getElementById('teacherSearchInput');
+    const qRaw = (input && input.value ? input.value : '').trim();
+    let list = [...(Array.isArray(this.allTeachers) ? this.allTeachers : [])];
+
+    if (qRaw) {
+      list = list.filter((t) => {
+        const fullName = `${t.firstName} ${t.lastName}`;
+        let subjects = t.subjects;
+        if (typeof subjects === 'string') {
+          try {
+            subjects = JSON.parse(subjects || '[]');
+          } catch (_) {
+            subjects = [];
+          }
+        }
+        const subjectStr = (Array.isArray(subjects) ? subjects : []).join(' ');
+        return (
+          normalizedIncludes(fullName, qRaw) ||
+          normalizedIncludes(subjectStr, qRaw) ||
+          normalizedIncludes(t.description || '', qRaw) ||
+          normalizedIncludes(t.curriculum || '', qRaw)
+        );
+      });
+    }
+
+    if (this.barScheduleFilter && this.barScheduleFilter.active) {
+      const { anyDay, dow, timeStart, timeEnd } = this.barScheduleFilter;
+      if (timeStart && timeEnd) {
+        const fs = ScheduleUtils.timeToMinutes(timeStart);
+        const fe = ScheduleUtils.timeToMinutes(timeEnd);
+        if (fs != null && fe != null && fe > fs) {
+          if (anyDay) {
+            const allDows = [0, 1, 2, 3, 4, 5, 6];
+            list = list.filter((t) =>
+              ScheduleUtils.teacherMatchesAvailability(t.schedules, allDows, fs, fe)
+            );
+          } else if (dow !== '' && dow != null) {
+            const d = typeof dow === 'number' ? dow : parseInt(String(dow), 10);
+            if (!Number.isNaN(d)) {
+              list = list.filter((t) =>
+                ScheduleUtils.teacherMatchesDowWindow(t.schedules, d, fs, fe)
+              );
+            }
+          }
+        }
+      }
+    }
+
+    return list;
+  }
+
+  refreshListTeachersView() {
+    this.currentPage_pagination = 1;
+    this.displayListTeachers(this.getListTeachersFiltered());
+  }
+
+  appendScheduleSlotRow(container, slot) {
+    const row = document.createElement('div');
+    row.className = 'schedule-slot-row';
+    const dow = slot && Number.isFinite(slot.dow) ? slot.dow : 1;
+    const start = (slot && slot.start) || '18:00';
+    const end = (slot && slot.end) || '20:00';
+    const opts = ScheduleUtils.DOW_LABELS_ES.map(
+      (label, i) => `<option value="${i}" ${i === dow ? 'selected' : ''}>${label}</option>`
+    ).join('');
+    row.innerHTML = `
+      <div class="schedule-slot-field">
+        <label>Día</label>
+        <select class="slot-dow form-control">${opts}</select>
+      </div>
+      <div class="schedule-slot-field">
+        <label>Desde</label>
+        <input type="time" class="slot-start form-control" value="${start}" />
+      </div>
+      <div class="schedule-slot-field">
+        <label>Hasta</label>
+        <input type="time" class="slot-end form-control" value="${end}" />
+      </div>
+      <button type="button" class="btn btn-outline btn-remove-slot" title="Quitar franja">✕</button>
+    `;
+    row.querySelector('.btn-remove-slot').addEventListener('click', () => {
+      const slotsWrap = container.querySelector('[data-schedule-slots]');
+      if (slotsWrap && slotsWrap.querySelectorAll('.schedule-slot-row').length > 1) row.remove();
     });
-    this.displayTeachers(filtered);
+    const slotsHost = container.querySelector('[data-schedule-slots]');
+    if (slotsHost) slotsHost.appendChild(row);
+  }
+
+  initScheduleBuilder(rootEl, initialSchedule) {
+    if (!rootEl) return;
+    const parsed = ScheduleUtils.parseSchedulesFromApi(initialSchedule);
+    const sch = ScheduleUtils.canonicalSchedule(parsed);
+    const slotsToShow = sch.slots && sch.slots.length ? sch.slots : [{ dow: 1, start: '18:00', end: '20:00' }];
+
+    rootEl.innerHTML = `
+      <div class="schedule-builder" data-schedule-builder>
+        <p class="schedule-builder-intro">
+          Indicá al menos un día con horario de inicio y fin. Podés sumar varias franjas si dictás en distintos momentos.
+        </p>
+        <div class="schedule-slots-wrap" data-schedule-slots-wrap>
+          <div data-schedule-slots class="schedule-slots"></div>
+          <button type="button" class="btn btn-outline" data-add-slot>+ Agregar otra franja</button>
+        </div>
+        <div class="form-group schedule-notes-group">
+          <label for="scheduleNotesField">Notas opcionales (ej. feriados, excepciones)</label>
+          <input type="text" id="scheduleNotesField" data-schedule-notes maxlength="500" placeholder="Opcional" value="${ScheduleUtils.escapeHtml(sch.notes)}" />
+        </div>
+      </div>
+    `;
+    const addBtn = rootEl.querySelector('[data-add-slot]');
+    slotsToShow.forEach((sl) => this.appendScheduleSlotRow(rootEl, sl));
+    addBtn.addEventListener('click', () => this.appendScheduleSlotRow(rootEl, { dow: 1, start: '18:00', end: '20:00' }));
+  }
+
+  collectSchedulePayloadFromBuilder(rootEl) {
+    const builder = rootEl && rootEl.querySelector('[data-schedule-builder]');
+    if (!builder) return { version: 1, slots: [{ dow: 1, start: '18:00', end: '20:00' }], flexible: false, notes: '' };
+    const notesEl = builder.querySelector('[data-schedule-notes]');
+    const notes = notesEl && notesEl.value ? notesEl.value.trim().slice(0, 500) : '';
+    const slots = [];
+    builder.querySelectorAll('.schedule-slot-row').forEach((row) => {
+      const dowSel = row.querySelector('.slot-dow');
+      const startInp = row.querySelector('.slot-start');
+      const endInp = row.querySelector('.slot-end');
+      if (!dowSel || !startInp || !endInp) return;
+      const dow = parseInt(dowSel.value, 10);
+      const start = startInp.value;
+      const end = endInp.value;
+      if (!Number.isFinite(dow) || dow < 0 || dow > 6) return;
+      if (!start || !end) return;
+      slots.push({ dow, start, end });
+    });
+    return { version: 1, slots, flexible: false, notes };
   }
 
   renderAddTeacherPage(main) {
@@ -1878,26 +2283,26 @@ class EstudiusApp {
                   <input type="number" id="classSize" name="classSize" min="1" max="40" required />
                   <div class="form-error"></div>
                 </div>
-
-                <div class="form-group required">
-                  <label>Modalidad</label>
-                  <div class="filter-chips">
-                    <label class="filter-chip">
-                      <input type="checkbox" name="modalities" value="virtual" />
-                      Virtual
-                    </label>
-                    <label class="filter-chip">
-                      <input type="checkbox" name="modalities" value="presencial" />
-                      Presencial
-                    </label>
-                  </div>
-                  <div class="form-error"></div>
-                </div>
               </div>
 
-              <div class="form-group required">
-                <label for="schedules">Horarios</label>
-                <textarea id="schedules" name="schedules" placeholder="Ej: Lunes a viernes 18:00-19:00"></textarea>
+              <div class="form-group required modality-field-group">
+                <span class="modality-field-label">Modalidad de las clases</span>
+                <div class="modality-picker" role="group" aria-label="Modalidad">
+                  <label class="modality-option">
+                    <input type="checkbox" name="modalities" value="virtual" />
+                    <span class="modality-option-text">Virtual</span>
+                  </label>
+                  <label class="modality-option">
+                    <input type="checkbox" name="modalities" value="presencial" />
+                    <span class="modality-option-text">Presencial</span>
+                  </label>
+                </div>
+                <div class="form-error"></div>
+              </div>
+
+              <div class="form-group required" id="scheduleBuilderHost">
+                <label>Franjas horarias en las que dictás clases</label>
+                <div id="scheduleBuilderRoot"></div>
                 <div class="form-error"></div>
               </div>
 
@@ -1998,6 +2403,9 @@ class EstudiusApp {
       if (warningsList) warningsList.innerHTML = '';
       // Limpiar errores visuales de campos
       clearFormErrors('addTeacherForm');
+      setTimeout(() => {
+        this.initScheduleBuilder(document.getElementById('scheduleBuilderRoot'), null);
+      }, 0);
     });
 
     // Botón volver en páginas admin
@@ -2008,6 +2416,10 @@ class EstudiusApp {
         this.previousPageBeforeAdmin = null;
       });
     }
+
+    setTimeout(() => {
+      this.initScheduleBuilder(document.getElementById('scheduleBuilderRoot'), null);
+    }, 0);
   }
 
   validateAddTeacherForm() {
@@ -2021,7 +2433,6 @@ class EstudiusApp {
     const curriculum = document.getElementById('curriculum').value.trim();
     const classSize = parseInt(document.getElementById('classSize').value);
     const modalities = Array.from(document.querySelectorAll('input[name="modalities"]:checked')).map(cb => cb.value);
-    const schedules = document.getElementById('schedules').value.trim();
     const location = document.getElementById('location').value.trim();
 
     if (!firstName) errors.push('El nombre es requerido');
@@ -2032,8 +2443,23 @@ class EstudiusApp {
     if (!description) errors.push('La descripción del profesor es requerida');
     if (!curriculum) errors.push('El temario/currículo es requerido');
     if (isNaN(classSize) || classSize < 1 || classSize > 40) errors.push('La cantidad de alumnos debe estar entre 1 y 40');
-    if (!modalities || modalities.length === 0) errors.push('La modalidad es requerida');
-    if (!schedules) errors.push('Los horarios son requeridos');
+    if (Array.isArray(modalities) && modalities.length === 0) errors.push('La modalidad es requerida');
+
+    const schPayload = this.collectSchedulePayloadFromBuilder(document.getElementById('scheduleBuilderRoot'));
+    if (!schPayload.slots || schPayload.slots.length === 0) {
+      errors.push('Agregá al menos una franja con día y horario');
+    }
+    if (schPayload.slots && schPayload.slots.length) {
+      for (const sl of schPayload.slots) {
+        const a = ScheduleUtils.timeToMinutes(sl.start);
+        const b = ScheduleUtils.timeToMinutes(sl.end);
+        if (a == null || b == null || b <= a) {
+          errors.push('En cada franja, la hora hasta debe ser mayor que la hora desde');
+          break;
+        }
+      }
+    }
+
     if (Array.isArray(modalities) && modalities.includes('presencial') && !location) errors.push('La ubicación es requerida para clases presenciales');
 
     return errors;
@@ -2117,7 +2543,7 @@ class EstudiusApp {
       curriculum: document.getElementById('curriculum').value.trim(),
       classSize: parseInt(document.getElementById('classSize').value),
       modalities: Array.from(document.querySelectorAll('input[name="modalities"]:checked')).map(cb => cb.value),
-      schedules: document.getElementById('schedules').value.trim(),
+      schedules: this.collectSchedulePayloadFromBuilder(document.getElementById('scheduleBuilderRoot')),
       location: document.getElementById('location').value.trim() || null,
       photo: photoBase64,
       subjects: Array.from(document.querySelectorAll('input[name="subjects"]:checked')).map(cb => cb.value)
@@ -2187,10 +2613,21 @@ class EstudiusApp {
       hasErrors = true;
     }
 
-    if (!formData.schedules) {
-      errors.push('Los horarios son requeridos');
-      setFieldError('schedules', 'Horarios requeridos');
+    const schFromForm = this.collectSchedulePayloadFromBuilder(document.getElementById('scheduleBuilderRoot'));
+    if (!schFromForm.slots || schFromForm.slots.length === 0) {
+      errors.push('Agregá al menos una franja con día y horario');
       hasErrors = true;
+    }
+    if (schFromForm.slots && schFromForm.slots.length) {
+      for (const sl of schFromForm.slots) {
+        const a = ScheduleUtils.timeToMinutes(sl.start);
+        const b = ScheduleUtils.timeToMinutes(sl.end);
+        if (a == null || b == null || b <= a) {
+          errors.push('En cada franja, la hora hasta debe ser mayor que la hora desde');
+          hasErrors = true;
+          break;
+        }
+      }
     }
 
     if (Array.isArray(formData.modalities) && formData.modalities.includes('presencial') && !formData.location) {
@@ -2247,7 +2684,18 @@ class EstudiusApp {
   renderListTeachersPage(main) {
     main.innerHTML = `
       <div class="container" style="padding-top: var(--spacing-2xl);">
-        <h1 style="color: var(--isotipo-dark); margin-bottom: var(--spacing-2xl);">Listado de Profesores</h1>
+        <h1 style="color: var(--isotipo-dark); margin-bottom: var(--spacing-md);">Listado de Profesores</h1>
+
+        <div class="search-bar-row">
+          <div class="search-bar-search">
+            <div class="search-pill">
+              <input id="teacherSearchInput" placeholder="Buscar por nombre o materia" autocomplete="off" />
+              <button id="teacherSearchBtn" title="Buscar">🔍</button>
+            </div>
+            <div id="searchSuggestions" class="search-suggestions" style="display:none;"></div>
+          </div>
+          ${ScheduleUtils.inlineScheduleFilterMarkup()}
+        </div>
 
         <div id="teachersList" class="teachers-grid">
           <p>Cargando profesores...</p>
@@ -2258,6 +2706,294 @@ class EstudiusApp {
     `;
 
     this.loadAllTeachers();
+    setTimeout(() => {
+      this.setupListSearch();
+      this.attachBarScheduleListeners('list');
+    }, 0);
+  }
+
+  setupListSearch() {
+    const input = document.getElementById('teacherSearchInput');
+    const btn = document.getElementById('teacherSearchBtn');
+    let suggestions = document.getElementById('searchSuggestions');
+
+    if (!input || !btn || !suggestions) return;
+
+    // If the suggestions element exists but isn't a child of the pill, move it
+    if (suggestions.parentElement !== input.parentElement) {
+      input.parentElement.appendChild(suggestions);
+      suggestions = document.getElementById('searchSuggestions');
+    }
+
+    const handleInput = debounce(async (e) => {
+      const q = (e.target.value || '').trim();
+      if (!q) {
+        suggestions.style.display = 'none';
+        return;
+      }
+
+      const items = this.getSearchSuggestions(q, 8);
+      this.showSearchSuggestions(items, q);
+    }, 250);
+
+    input.addEventListener('input', handleInput);
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const q = (input.value || '').trim();
+        this.performListSearch(q);
+      }
+    });
+
+    btn.addEventListener('click', () => {
+      const q = (input.value || '').trim();
+      this.performListSearch(q);
+    });
+  }
+
+  setupHomeSearch() {
+    const existing = document.getElementById('searchInput');
+    if (!existing) return;
+
+    const searchBox = existing.parentElement;
+    if (!searchBox) return;
+
+    const row = document.createElement('div');
+    row.className = 'search-bar-row';
+
+    const searchCol = document.createElement('div');
+    searchCol.className = 'search-bar-search';
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'search-pill';
+
+    const input = document.createElement('input');
+    input.id = 'homeSearchInput';
+    input.placeholder = existing.placeholder || 'Buscar por nombre o materia…';
+    input.autocomplete = 'off';
+    wrapper.appendChild(input);
+
+    const btn = document.createElement('button');
+    btn.id = 'homeSearchBtn';
+    btn.title = 'Buscar';
+    btn.textContent = '🔍';
+    wrapper.appendChild(btn);
+
+    const suggestions = document.createElement('div');
+    suggestions.id = 'homeSearchSuggestions';
+    suggestions.className = 'search-suggestions';
+    suggestions.style.display = 'none';
+    wrapper.appendChild(suggestions);
+
+    searchCol.appendChild(wrapper);
+    row.appendChild(searchCol);
+
+    const filterWrap = document.createElement('div');
+    filterWrap.innerHTML = ScheduleUtils.inlineScheduleFilterMarkup().trim();
+    row.appendChild(filterWrap.firstElementChild);
+
+    searchBox.innerHTML = '';
+    searchBox.appendChild(row);
+
+    const debounced = debounce((e) => {
+      const q = (e.target.value || '').trim();
+      if (!q) {
+        suggestions.style.display = 'none';
+        return;
+      }
+      const items = this.getSearchSuggestions(q, 8);
+      this.showHomeSearchSuggestions(items, q);
+    }, 250);
+
+    input.addEventListener('input', debounced);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        suggestions.style.display = 'none';
+        this.rebuildHomeTeacherGrid();
+      }
+    });
+
+    btn.addEventListener('click', () => {
+      suggestions.style.display = 'none';
+      this.rebuildHomeTeacherGrid();
+    });
+
+    this.attachBarScheduleListeners('home');
+  }
+
+  showHomeSearchSuggestions(items, query) {
+    const container = document.getElementById('homeSearchSuggestions');
+    if (!container) return;
+    const input = document.getElementById('homeSearchInput');
+
+    this.renderSearchSuggestions(container, items, query, (item) => {
+      if (input) input.value = item.value || item.label;
+      container.style.display = 'none';
+      this.rebuildHomeTeacherGrid();
+    });
+  }
+
+  getSearchSuggestions(query, limit = 6) {
+    const rawQuery = String(query || '').trim();
+    const qn = normalizeSearchText(rawQuery);
+    if (!qn) return [];
+
+    const suggestions = [];
+    const seen = new Set();
+    const typeRank = { query: 0, teacher: 1, subject: 2 };
+
+    const addSuggestion = (label, value, type, score) => {
+      const key = `${type}|${normalizeSearchText(String(label || ''))}`;
+      if (seen.has(key)) return;
+      suggestions.push({ label, value, type, score });
+      seen.add(key);
+    };
+
+    addSuggestion(`Buscar "${rawQuery}"`, rawQuery, 'query', 0);
+    addSuggestion(`Buscar profesores de "${rawQuery}"`, rawQuery, 'query', 1);
+
+    if (Array.isArray(this.allTeachers)) {
+      for (const t of this.allTeachers) {
+        const fullName = `${t.firstName} ${t.lastName}`.trim();
+        const fullNameNorm = normalizeSearchText(fullName);
+        if (fullNameNorm.includes(qn)) {
+          addSuggestion(fullName, fullName, 'teacher', fullNameNorm.startsWith(qn) ? 1 : 2);
+        }
+
+        const subjects = Array.isArray(t.subjects)
+          ? t.subjects
+          : (() => {
+              if (typeof t.subjects !== 'string') return [];
+              try {
+                return JSON.parse(t.subjects || '[]');
+              } catch (_) {
+                return [];
+              }
+            })();
+        (subjects || []).forEach((subject) => {
+          const subjectLabel = String(subject || '').trim();
+          if (!subjectLabel) return;
+          const subjectNorm = normalizeSearchText(subjectLabel);
+          if (subjectNorm.includes(qn)) {
+            addSuggestion(subjectLabel, subjectLabel, 'subject', subjectNorm.startsWith(qn) ? 1 : 2);
+          }
+        });
+      }
+    }
+
+    suggestions.sort((a, b) => {
+      const scoreDiff = a.score - b.score;
+      if (scoreDiff !== 0) return scoreDiff;
+      const typeDiff = typeRank[a.type] - typeRank[b.type];
+      if (typeDiff !== 0) return typeDiff;
+      return String(a.label || '').localeCompare(String(b.label || ''), 'es');
+    });
+
+    return suggestions.slice(0, limit).map(({ score, ...rest }) => rest);
+  }
+
+  renderSearchSuggestions(container, items, query, onSelect) {
+    container.innerHTML = '';
+    if (!items || items.length === 0) {
+      container.style.display = 'none';
+      return;
+    }
+
+    container.style.display = 'flex';
+    const qRaw = String(query || '').trim();
+
+    items.forEach((item) => {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'search-suggestion';
+
+      const text = document.createElement('span');
+      text.className = 'search-suggestion-text';
+      this.applySuggestionHighlight(text, item.label, qRaw);
+
+      const meta = document.createElement('span');
+      meta.className = 'search-suggestion-meta';
+      meta.textContent = this.getSuggestionMetaLabel(item.type);
+
+      row.appendChild(text);
+      row.appendChild(meta);
+
+      row.addEventListener('click', () => {
+        if (typeof onSelect === 'function') onSelect(item);
+      });
+
+      container.appendChild(row);
+    });
+  }
+
+  applySuggestionHighlight(container, label, queryRaw) {
+    const text = String(label || '');
+    const raw = String(queryRaw || '').trim();
+    if (!raw) {
+      container.textContent = text;
+      return;
+    }
+
+    const range = accentInsensitiveMatchRange(text, raw);
+    if (range) {
+      const [i, k] = range;
+      container.textContent = '';
+      container.appendChild(document.createTextNode(text.slice(0, i)));
+      const mark = document.createElement('span');
+      mark.className = 'suggestion-highlight';
+      mark.textContent = text.slice(i, k);
+      container.appendChild(mark);
+      container.appendChild(document.createTextNode(text.slice(k)));
+      return;
+    }
+
+    const lower = text.toLowerCase();
+    const qLower = raw.toLowerCase();
+    const index = lower.indexOf(qLower);
+    if (index === -1) {
+      container.textContent = text;
+      return;
+    }
+
+    container.textContent = '';
+    container.appendChild(document.createTextNode(text.slice(0, index)));
+    const mark = document.createElement('span');
+    mark.className = 'suggestion-highlight';
+    mark.textContent = text.slice(index, index + qLower.length);
+    container.appendChild(mark);
+    container.appendChild(document.createTextNode(text.slice(index + qLower.length)));
+  }
+
+  getSuggestionMetaLabel(type) {
+    if (type === 'teacher') return 'Profesor';
+    if (type === 'subject') return 'Materia';
+    return 'Busqueda';
+  }
+
+  showSearchSuggestions(items, query) {
+    const container = document.getElementById('searchSuggestions');
+    if (!container) return;
+    const input = document.getElementById('teacherSearchInput');
+
+    this.renderSearchSuggestions(container, items, query, (item) => {
+      if (input) input.value = item.value || item.label;
+      const q = (item.value || item.label || '').trim();
+      this.performListSearch(q);
+      container.style.display = 'none';
+    });
+  }
+
+  performListSearch(query) {
+    const input = document.getElementById('teacherSearchInput');
+    if (typeof query === 'string' && input) {
+      input.value = query;
+    }
+    this.currentPage_pagination = 1;
+    this.displayListTeachers(this.getListTeachersFiltered());
+    const s = document.getElementById('searchSuggestions');
+    if (s) s.style.display = 'none';
   }
 
   async loadAllTeachers() {
@@ -2265,13 +3001,20 @@ class EstudiusApp {
       const result = await TeacherAPI.getAllTeachers();
       
       if (result.data && result.data.length > 0) {
-        // Parse subjects and modalities
-        this.allTeachers = result.data.map(teacher => ({
+        // Parse subjects, modalities y horarios estructurados
+        this.allTeachers = result.data.map((teacher) => ({
           ...teacher,
           subjects: typeof teacher.subjects === 'string' ? JSON.parse(teacher.subjects) : teacher.subjects,
-          modalities: teacher.modalities ? (typeof teacher.modalities === 'string' ? JSON.parse(teacher.modalities) : teacher.modalities) : (teacher.modality ? [teacher.modality] : [])
+          modalities: teacher.modalities
+            ? typeof teacher.modalities === 'string'
+              ? JSON.parse(teacher.modalities)
+              : teacher.modalities
+            : teacher.modality
+              ? [teacher.modality]
+              : [],
+          schedules: ScheduleUtils.parseSchedulesFromApi(teacher.schedules)
         }));
-        this.displayListTeachers(this.allTeachers);
+        this.refreshListTeachersView();
       } else {
         document.getElementById('teachersList').innerHTML = '<p>No hay profesores registrados</p>';
       }
@@ -2299,7 +3042,7 @@ class EstudiusApp {
     const paginatedTeachers = this.currentDisplayedTeachers.slice(start, end);
 
     paginatedTeachers.forEach(teacher => {
-      grid.appendChild(createTeacherCard(teacher, this.filters.subject));
+      grid.appendChild(createTeacherCard(teacher, this.filters.subject, this.favoriteTeacherIds));
     });
 
     // Renderizar paginación
@@ -2373,14 +3116,326 @@ class EstudiusApp {
     });
   }
 
+  ymdTodayLocal() {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  }
+
+  teacherDetailMonthBounds(year, month0) {
+    const p = (n) => String(n).padStart(2, '0');
+    const first = new Date(year, month0, 1);
+    const last = new Date(year, month0 + 1, 0);
+    return {
+      fromYmd: `${first.getFullYear()}-${p(first.getMonth() + 1)}-01`,
+      toYmd: `${last.getFullYear()}-${p(last.getMonth() + 1)}-${p(last.getDate())}`
+    };
+  }
+
+  buildMonthGridHtml(year, monthIndex, daysMap, todayYmd, selectedYmd, opts = {}) {
+    const hideMonthTitle = !!opts.hideMonthTitle;
+    const userMineYmds = opts.userMineYmds instanceof Set ? opts.userMineYmds : null;
+    const MES = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+    const DOW = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const first = new Date(year, monthIndex, 1);
+    const lead = first.getDay();
+    const dim = new Date(year, monthIndex + 1, 0).getDate();
+    let cells = '';
+    for (let i = 0; i < lead; i++) cells += '<div class="cal-cell cal-cell--empty"></div>';
+    for (let d = 1; d <= dim; d++) {
+      const ymd = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const info = daysMap && daysMap[ymd];
+      const past = ymd < todayYmd;
+      const mine = userMineYmds && userMineYmds.has(ymd);
+      const st = info ? info.status : 'no_class';
+      let cls = 'cal-day cal-day--noclass';
+      if (mine) {
+        cls = past ? 'cal-day cal-day--mine cal-day--mine-past' : 'cal-day cal-day--mine';
+      } else if (past) cls = 'cal-day cal-day--past';
+      else if (info) {
+        if (st === 'available') cls = 'cal-day cal-day--available';
+        else if (st === 'partial') cls = 'cal-day cal-day--partial';
+        else if (st === 'full') cls = 'cal-day cal-day--full';
+        else cls = 'cal-day cal-day--noclass';
+      }
+      const dis = mine || past || !info || st === 'no_class' || st === 'full';
+      const picked = selectedYmd === ymd ? ' cal-day--picked' : '';
+      cells += `<button type="button" class="${cls}${picked}" data-cal-ymd="${ymd}" ${dis ? 'disabled' : ''}>${d}</button>`;
+    }
+    return `
+      <div class="cal-month-wrap">
+        ${hideMonthTitle ? '' : `<div class="cal-month-title">${MES[monthIndex]} ${year}</div>`}
+        <div class="cal-dow-row">${DOW.map((x) => `<span>${x}</span>`).join('')}</div>
+        <div class="cal-days-grid">${cells}</div>
+      </div>`;
+  }
+
+  /** Mapa de días en [fromYmd,toYmd] según solo los horarios cargados del profesor (sin cupos del servidor). */
+  buildDaysMapFromTeacherSchedule(teacher, fromYmd, toYmd) {
+    const days = {};
+    const from = ScheduleUtils.parseYMDLocal(fromYmd);
+    const to = ScheduleUtils.parseYMDLocal(toYmd);
+    if (!from || !to || from > to) return days;
+    const cap = Math.max(1, parseInt(teacher.classSize, 10) || 1);
+    const cur = new Date(from.getTime());
+    const end = new Date(to.getTime());
+    while (cur <= end) {
+      const ymd = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+      const slot = ScheduleUtils.getSlotForCalendarDate(teacher.schedules, ymd);
+      if (!slot) {
+        days[ymd] = { status: 'no_class', start: null, end: null, bookedCount: 0, capacity: cap };
+      } else {
+        days[ymd] = { status: 'available', start: slot.start, end: slot.end, bookedCount: 0, capacity: cap };
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+    return days;
+  }
+
+  async initTeacherDetailCalendar(teacher, isUser) {
+    const root = document.getElementById('teacherBookingCalRoot');
+    const pickPanel = document.getElementById('teacherBookingPickPanel');
+    const pickLabel = document.getElementById('teacherBookingPickLabel');
+    const modalityWrap = document.getElementById('teacherBookingModalityWrap');
+    const noteEl = document.getElementById('teacherBookingNote');
+    const confirmBtn = document.getElementById('teacherBookingConfirmBtn');
+    const inlineErr = document.getElementById('teacherBookingInlineErr');
+    if (!root) return;
+
+    const bookingTeacherId = Number(teacher && teacher.id);
+    if (!Number.isFinite(bookingTeacherId) || bookingTeacherId < 1) {
+      root.innerHTML = '<p class="inline-error" role="alert">No se pudo cargar el identificador del profesor para reservar. Volvé al listado e ingresá de nuevo.</p>';
+      return;
+    }
+
+    const MES = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+
+    const now = new Date();
+    let anchorY = now.getFullYear();
+    let anchorM = now.getMonth();
+    let daysMap = null;
+    let loadError = false;
+    let selectedYmd = null;
+
+    const todayYmd = this.ymdTodayLocal();
+    let userMineYmds = new Set();
+
+    const loadMineSet = async () => {
+      userMineYmds = new Set();
+      if (!this.authToken || !isUser) return;
+      try {
+        const res = await BookingAPI.getMyBookings(this.authToken);
+        if (!res || !res.success || !Array.isArray(res.data)) return;
+        for (const b of res.data) {
+          if (Number(b.teacherId) !== bookingTeacherId || !b.datetime) continue;
+          const ymd = String(b.datetime).trim().substring(0, 10);
+          if (/^\d{4}-\d{2}-\d{2}$/.test(ymd)) userMineYmds.add(ymd);
+        }
+      } catch (e) {
+        console.warn('loadMineSet', e);
+      }
+    };
+
+    const fetchDays = async () => {
+      loadError = false;
+      const { fromYmd, toYmd } = this.teacherDetailMonthBounds(anchorY, anchorM);
+      const localMap = this.buildDaysMapFromTeacherSchedule(teacher, fromYmd, toYmd);
+      daysMap = { ...localMap };
+      try {
+        const res = await TeacherAPI.getTeacherAvailability(bookingTeacherId, fromYmd, toYmd);
+        if (res && res.success && res.data && res.data.days) {
+          const serverDays = res.data.days;
+          for (const ymd of Object.keys(serverDays)) {
+            const s = serverDays[ymd];
+            const base = localMap[ymd];
+            if (base && base.status !== 'no_class') {
+              daysMap[ymd] = { ...base, ...s };
+            } else {
+              daysMap[ymd] = s;
+            }
+          }
+        } else {
+          throw new Error('bad');
+        }
+      } catch (e) {
+        console.warn(e);
+        loadError = true;
+        daysMap = { ...localMap };
+      }
+    };
+
+    const modOptions = this.bookingModalityOptions(teacher);
+
+    const paint = () => {
+      const monthLabel = `${MES[anchorM]} ${anchorY}`;
+      root.innerHTML = `
+        <div class="booking-cal-toolbar">
+          <button type="button" class="btn btn-outline btn-sm" id="teacherCalPrev" aria-label="Mes anterior">←</button>
+          <span class="booking-cal-toolbar-label">${monthLabel}</span>
+          <button type="button" class="btn btn-outline btn-sm" id="teacherCalNext" aria-label="Mes siguiente">→</button>
+        </div>
+        <div class="booking-cal-single">
+          ${loadError ? '<p class="booking-cal-fallback" role="status">No se pudieron cargar los cupos desde el servidor; el calendario sigue mostrando los días con clase según el horario cargado. Usá <strong>Reintentar cupos</strong> para actualizar ocupación.</p>' : ''}
+          ${daysMap ? this.buildMonthGridHtml(anchorY, anchorM, daysMap, todayYmd, selectedYmd, { hideMonthTitle: true, userMineYmds }) : ''}
+        </div>
+        ${loadError ? `<div class="booking-cal-toolbar booking-cal-toolbar--footer">
+          <button type="button" class="btn btn-outline btn-sm" id="teacherCalRetryCupo">Reintentar cupos</button>
+        </div>` : ''}
+        <div class="booking-cal-legend">
+          <span><i class="cal-leg cal-leg--noclass"></i> Sin clase (no coincide con sus días cargados)</span>
+          <span><i class="cal-leg cal-leg--available"></i> Con cupo</span>
+          <span><i class="cal-leg cal-leg--partial"></i> Cupos parciales</span>
+          <span><i class="cal-leg cal-leg--full"></i> Completo / sin cupos (<span class="cal-leg-red-note">rojo</span>)</span>
+          <span><i class="cal-leg cal-leg--mine"></i> Tu reserva (incluye clases ya dictadas)</span>
+        </div>`;
+
+      const prev = document.getElementById('teacherCalPrev');
+      const next = document.getElementById('teacherCalNext');
+      const retryCupo = document.getElementById('teacherCalRetryCupo');
+      if (prev) {
+        prev.onclick = () => {
+          anchorM -= 1;
+          if (anchorM < 0) {
+            anchorM = 11;
+            anchorY -= 1;
+          }
+          selectedYmd = null;
+          if (pickPanel) pickPanel.style.display = 'none';
+          if (inlineErr) inlineErr.textContent = '';
+          void refetchAndPaint();
+        };
+      }
+      if (next) {
+        next.onclick = () => {
+          anchorM += 1;
+          if (anchorM > 11) {
+            anchorM = 0;
+            anchorY += 1;
+          }
+          selectedYmd = null;
+          if (pickPanel) pickPanel.style.display = 'none';
+          if (inlineErr) inlineErr.textContent = '';
+          void refetchAndPaint();
+        };
+      }
+      if (retryCupo) {
+        retryCupo.onclick = () => {
+          void refetchAndPaint();
+        };
+      }
+
+      root.querySelectorAll('.cal-day:not([disabled])').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const ymd = btn.getAttribute('data-cal-ymd');
+          if (!ymd || !daysMap || !daysMap[ymd]) return;
+          const st = daysMap[ymd].status;
+          if (st === 'no_class' || st === 'full') return;
+          if (!this.currentUser) {
+            showAlert('Iniciá sesión para reservar', 'info');
+            this.showAuthModal('login');
+            return;
+          }
+          if (!isUser) {
+            showAlert('Solo los alumnos pueden reservar clases desde aquí.', 'info');
+            return;
+          }
+          selectedYmd = ymd;
+          root.querySelectorAll('.cal-day').forEach((b) => b.classList.remove('cal-day--picked'));
+          btn.classList.add('cal-day--picked');
+          const slot = daysMap[ymd];
+          if (modalityWrap) {
+            if (modOptions.length >= 2) {
+              modalityWrap.style.display = 'block';
+              const vIn = modalityWrap.querySelector('input[value="virtual"]');
+              const pIn = modalityWrap.querySelector('input[value="presencial"]');
+              if (vIn) vIn.checked = false;
+              if (pIn) pIn.checked = false;
+              if (modOptions.includes('virtual') && vIn) vIn.checked = true;
+              else if (modOptions.includes('presencial') && pIn) pIn.checked = true;
+            } else {
+              modalityWrap.style.display = 'none';
+            }
+          }
+          if (pickPanel && pickLabel) {
+            pickLabel.textContent = `Día ${ymd} · ${slot.start} a ${slot.end}`;
+            pickPanel.style.display = 'block';
+          }
+          if (inlineErr) inlineErr.textContent = '';
+          if (noteEl) noteEl.value = '';
+        });
+      });
+    };
+
+    const refetchAndPaint = async () => {
+      await fetchDays();
+      await loadMineSet();
+      paint();
+    };
+
+    await refetchAndPaint();
+
+    if (confirmBtn && isUser) {
+      confirmBtn.onclick = async () => {
+        if (!selectedYmd) return;
+        if (inlineErr) inlineErr.textContent = '';
+        try {
+          let sessionModality = null;
+          if (modOptions.length >= 2) {
+            const sel = modalityWrap && modalityWrap.querySelector('input[name="teacherBookingModality"]:checked');
+            sessionModality = sel ? sel.value : null;
+            if (!sessionModality) {
+              if (inlineErr) inlineErr.textContent = 'Elegí si la clase será virtual o presencial.';
+              return;
+            }
+          } else if (modOptions.length === 1) {
+            sessionModality = modOptions[0];
+          }
+          await this.handleCreateBooking(bookingTeacherId, selectedYmd, noteEl ? noteEl.value : '', sessionModality);
+          showAlert('Reserva confirmada', 'success');
+          selectedYmd = null;
+          if (pickPanel) pickPanel.style.display = 'none';
+          await refetchAndPaint();
+        } catch (err) {
+          if (inlineErr) inlineErr.textContent = (err && err.message) || 'No se pudo reservar';
+        }
+      };
+    } else if (confirmBtn) {
+      confirmBtn.disabled = true;
+    }
+  }
+
   async showTeacherDetail(teacherId) {
+    const main = document.querySelector('main');
+    const renderLoadError = () => {
+      main.innerHTML = `
+        <div class="container detail-load-error">
+          <p>No se pudo cargar la información del profesor.</p>
+          <button type="button" class="btn btn-primary" id="retryTeacherDetailBtn">Reintentar</button>
+        </div>`;
+      const b = document.getElementById('retryTeacherDetailBtn');
+      if (b) b.onclick = () => this.showTeacherDetail(teacherId);
+    };
+
     try {
       const result = await TeacherAPI.getTeacherById(teacherId);
+      if (!result || !result.success || !result.data) {
+        renderLoadError();
+        return;
+      }
       const teacher = result.data;
-      const main = document.querySelector('main');
+      const teacherNumericId = Number(teacher.id);
+      const teacherIdOk = Number.isFinite(teacherNumericId) && teacherNumericId > 0;
 
       const isAdmin = this.currentUser && this.currentUser.role === 'admin';
       const isUser = this.currentUser && this.currentUser.role === 'user';
+      const favOn = teacherIdOk && this.favoriteTeacherIds.has(teacherNumericId);
+      const heartSvg =
+        '<svg class="detail-fav-icon" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>';
 
       const subjectIconMap = this.getSubjectIconMap();
       const subjectsListHtml = (Array.isArray(teacher.subjects) ? teacher.subjects : []).map((subject) => `
@@ -2406,27 +3461,52 @@ class EstudiusApp {
               ` : ''}
             </div>
           </div>
-      ` : ``; // No mostrar nada si no es admin
+      ` : ``;
 
-      // Acción de la parte inferior: si es admin -> botones de admin; si es usuario o anónimo -> mostrar botón de agendar (anónimo verá error inline)
-      const adminActionsHtml = isAdmin ? `
-        <div class="detail-admin-actions" style="display: flex; gap: var(--spacing-lg); margin-top: var(--spacing-2xl); padding-top: var(--spacing-xl); border-top: 2px solid #e7e7e7;">
-          <button id="editTeacherBtn" class="btn btn-primary" style="flex: 1; padding: var(--spacing-md); background: #274580; color: white; border: none; border-radius: var(--border-radius); cursor: pointer; font-weight: 600; font-size: var(--font-size-sm);">Editar Profesor</button>
-          <button id="deleteTeacherBtn" class="btn btn-danger" style="flex: 1; padding: var(--spacing-md); background: #d9534f; color: white; border: none; border-radius: var(--border-radius); cursor: pointer; font-weight: 600; font-size: var(--font-size-sm);">Eliminar Profesor</button>
-        </div>
-      ` : `
-        <div style="display:flex; flex-direction: column; gap: var(--spacing-sm); margin-top: var(--spacing-2xl); padding-top: var(--spacing-xl); border-top: 2px solid #e7e7e7;">
-          <div id="bookError" class="inline-error" style="visibility: hidden;">&nbsp;</div>
-          <div>
-            <button id="bookClassBtn" class="btn btn-primary" style="width:100%; padding: var(--spacing-md); background: #2b8a3e; color: white; border: none; border-radius: var(--border-radius); cursor: pointer; font-weight: 600; font-size: var(--font-size-sm);">Agendar clase</button>
-          </div>
-        </div>
-      `;
+      const bookingSectionHtml = !isAdmin
+        ? `
+              <div class="detail-info-section" id="teacherBookingSection">
+                <h3>Reservar una clase</h3>
+                <p class="booking-schedule-reminder"><strong>Horarios cargados de este profesor:</strong> ${ScheduleUtils.formatScheduleSummaryEs(teacher.schedules)}</p>
+                <p class="booking-cal-intro">El calendario marca según esos horarios: días sin franja en gris; con cupo en verde; cupos parciales en amarillo; <strong>sin cupos / completo en rojo</strong>. Los días en <strong>violeta</strong> son tus reservas con este profesor (siguen visibles aunque la fecha ya haya pasado). Si el profesor ofrece virtual y presencial, elegí la modalidad al confirmar. Elegí un día con cupo para una nueva reserva.</p>
+                <div id="teacherBookingCalRoot" class="teacher-booking-cal-root"></div>
+                <div id="teacherBookingPickPanel" class="teacher-booking-pick" style="display:none;">
+                  <p id="teacherBookingPickLabel"></p>
+                  <div id="teacherBookingModalityWrap" class="teacher-booking-modality-wrap" style="display:none;">
+                    <p class="teacher-booking-modality-title">Modalidad para esta clase</p>
+                    <div class="teacher-booking-modality-radios" role="radiogroup" aria-label="Modalidad">
+                      <label class="booking-modality-label"><input type="radio" name="teacherBookingModality" value="virtual" /> Virtual</label>
+                      <label class="booking-modality-label"><input type="radio" name="teacherBookingModality" value="presencial" /> Presencial</label>
+                    </div>
+                  </div>
+                  <div class="form-group"><label for="teacherBookingNote">Nota (opcional)</label><textarea id="teacherBookingNote" rows="2" maxlength="500" placeholder="Tema, duda u otro comentario"></textarea></div>
+                  <button type="button" class="btn btn-primary" id="teacherBookingConfirmBtn">Confirmar reserva</button>
+                  <div id="teacherBookingInlineErr" class="inline-error" role="alert"></div>
+                </div>
+              </div>`
+        : '';
+
+      const footerUserLink =
+        !isAdmin && isUser
+          ? `
+              <div class="detail-footer-booking-hint" style="margin-top: var(--spacing-lg); padding-top: var(--spacing-md); border-top: 1px solid #e7e7e7;">
+                <a href="#my-bookings" class="btn btn-link">Ver mis clases reservadas</a>
+              </div>`
+          : '';
+
+      const adminActionsHtml = isAdmin
+        ? `
+              <div class="detail-admin-actions" style="display: flex; gap: var(--spacing-lg); margin-top: var(--spacing-2xl); padding-top: var(--spacing-xl); border-top: 2px solid #e7e7e7;">
+                <button id="editTeacherBtn" class="btn btn-primary" style="flex: 1; padding: var(--spacing-md); background: #274580; color: white; border: none; border-radius: var(--border-radius); cursor: pointer; font-weight: 600; font-size: var(--font-size-sm);">Editar Profesor</button>
+                <button id="deleteTeacherBtn" class="btn btn-danger" style="flex: 1; padding: var(--spacing-md); background: #d9534f; color: white; border: none; border-radius: var(--border-radius); cursor: pointer; font-weight: 600; font-size: var(--font-size-sm);">Eliminar Profesor</button>
+              </div>`
+        : '';
 
       main.innerHTML = `
         <div class="detail-header">
-          <div class="detail-header-left">
+          <div class="detail-header-left detail-header-title-row">
             <h1>${teacher.firstName} ${teacher.lastName}</h1>
+            <button type="button" class="detail-fav-btn${favOn ? ' is-favorite' : ''}" data-fav-teacher-id="${teacherIdOk ? teacherNumericId : ''}" aria-label="Marcar favorito" aria-pressed="${favOn ? 'true' : 'false'}" title="Favorito" ${teacherIdOk ? '' : 'disabled'}>${heartSvg}</button>
           </div>
           <div class="detail-header-right">
             <span class="detail-header-back" onclick="window.history.back()">←</span>
@@ -2459,9 +3539,9 @@ class EstudiusApp {
                   <span class="detail-info-label">Tipo de clase:</span>
                   <span class="detail-info-value">${parseInt(teacher.classSize) === 1 ? 'Clases particulares' : `Clases grupales • ${teacher.classSize} alumnos`}</span>
                 </div>
-                <div class="detail-info-item">
+                <div class="detail-info-item schedule-detail-block">
                   <span class="detail-info-label">Horarios:</span>
-                  <span class="detail-info-value">${teacher.schedules}</span>
+                  <div class="detail-info-value schedule-detail-wrap">${ScheduleUtils.formatScheduleDetailHtml(teacher.schedules)}</div>
                 </div>
                 ${teacher.location ? `
                 <div class="detail-info-item">
@@ -2481,43 +3561,240 @@ class EstudiusApp {
                 <p>${typeof sanitizeDescription === 'function' ? sanitizeDescription(teacher.description) : (teacher.description || '')}</p>
               </div>
 
+              ${bookingSectionHtml}
+
               <div class="detail-info-section">
                 <h3>Temario</h3>
                 <p>${teacher.curriculum}</p>
               </div>
 
+              ${footerUserLink}
               ${adminActionsHtml}
             </div>
           </div>
         </div>
       `;
 
-      // Event listeners según rol
+      const favDetail = document.querySelector('.detail-fav-btn');
+      if (favDetail && teacherIdOk) favDetail.addEventListener('click', (e) => this.onFavoriteClick(teacherNumericId, e));
+
       if (isAdmin) {
         const editBtn = document.getElementById('editTeacherBtn');
         const deleteBtn = document.getElementById('deleteTeacherBtn');
         if (editBtn) editBtn.addEventListener('click', () => this.showEditTeacherPage(teacher));
         if (deleteBtn) deleteBtn.addEventListener('click', () => this.showDeleteConfirmation(teacher));
       } else {
-        const bookBtn = document.getElementById('bookClassBtn');
-        const bookErr = document.getElementById('bookError');
-        if (bookBtn) {
-          bookBtn.addEventListener('click', () => {
-              // Si no está autenticado -> mostrar error inline (arriba del botón)
-              if (!this.currentUser) {
-                if (bookErr) { bookErr.textContent = 'Debes iniciar sesión para agendar una clase'; bookErr.style.visibility = 'visible'; }
-                return;
-              }
-
-              // Usuario autenticado -> comportamiento: por ahora no hace nada (silencioso)
-              if (bookErr) { bookErr.textContent = ''; bookErr.style.visibility = 'hidden'; }
-              return;
-          });
-        }
+        void this.initTeacherDetailCalendar(teacher, isUser);
       }
     } catch (error) {
       console.error('Error:', error);
-      document.querySelector('main').innerHTML = '<p>Error al cargar detalles del profesor</p>';
+      renderLoadError();
+    }
+  }
+
+  async renderMyBookingsPage(main) {
+    main.innerHTML = `
+      <div class="container page-mis-clases">
+        <div class="detail-header">
+          <div class="detail-header-left">
+            <h1>Mis clases reservadas</h1>
+          </div>
+        </div>
+        <div id="myBookingsBody" class="my-bookings-body"><p>Cargando…</p></div>
+      </div>`;
+    const body = document.getElementById('myBookingsBody');
+    try {
+      const res = await BookingAPI.getMyBookings(this.authToken);
+      if (!res || !res.success) throw new Error(res && res.message);
+      const rows = res.data || [];
+      if (!rows.length) {
+        body.innerHTML = '<p class="muted">No tenés clases reservadas.</p>';
+        return;
+      }
+      body.innerHTML = rows
+        .map(
+          (b) => `
+        <article class="booking-card" data-booking-id="${b.id}">
+          <div class="booking-card-main">
+            <div class="booking-card-title">${b.teacherFirstName} ${b.teacherLastName}</div>
+            <div class="booking-card-meta">${this.formatBookingWhen(b.datetime, b.timeEnd)}${b.sessionModality ? ` <span class="booking-modality-badge">${b.sessionModality === 'virtual' ? 'Virtual' : 'Presencial'}</span>` : ''}</div>
+            <div class="booking-card-actions">
+              <button type="button" class="btn btn-outline btn-sm booking-detail-btn" data-id="${b.id}">Ver detalle</button>
+              <button type="button" class="btn btn-outline btn-sm booking-del-btn" data-id="${b.id}" data-start="${String(b.datetime || '').replace(/"/g, '&quot;')}">Cancelar reserva</button>
+            </div>
+          </div>
+        </article>`
+        )
+        .join('');
+
+      body.querySelectorAll('.booking-detail-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = parseInt(btn.getAttribute('data-id'), 10);
+          await this.openBookingDetailModal(id);
+        });
+      });
+      body.querySelectorAll('.booking-del-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = parseInt(btn.getAttribute('data-id'), 10);
+          const start = btn.getAttribute('data-start') || '';
+          if (!this.canCancelBooking(start)) {
+            showAlert(
+              'No podés cancelar con menos de un día de antelación. Si necesitás cambiar la clase, contactá al profesor.',
+              'error'
+            );
+            return;
+          }
+          this.showConfirmModal(
+            '¿Seguro que querés cancelar esta reserva? Esta acción no se puede deshacer.',
+            async () => {
+              try {
+                await BookingAPI.deleteBooking(this.authToken, id);
+                showAlert('Reserva cancelada', 'success');
+                await this.renderMyBookingsPage(main);
+              } catch (e) {
+                showAlert((e && e.message) || 'No se pudo cancelar', 'error');
+              }
+            },
+            'Sí, cancelar reserva'
+          );
+        });
+      });
+    } catch (e) {
+      body.innerHTML = `
+        <div class="availability-inline-error">
+          <p>No se pudieron cargar tus reservas. Reintentá más tarde.</p>
+          <button type="button" class="btn btn-outline" id="retryMyBookings">Reintentar</button>
+        </div>`;
+      const r = document.getElementById('retryMyBookings');
+      if (r) r.onclick = () => this.renderMyBookingsPage(main);
+    }
+  }
+
+  parseBookingStartLocal(datetimeStr) {
+    const s = String(datetimeStr || '').trim();
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+    if (m) {
+      const d = new Date(
+        parseInt(m[1], 10),
+        parseInt(m[2], 10) - 1,
+        parseInt(m[3], 10),
+        parseInt(m[4], 10),
+        parseInt(m[5], 10),
+        m[6] ? parseInt(m[6], 10) : 0
+      );
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    const iso = new Date(s.replace(' ', 'T'));
+    return Number.isNaN(iso.getTime()) ? null : iso;
+  }
+
+  /** Cancelación permitida solo si falta más de 24 h hasta el inicio de la clase. */
+  canCancelBooking(datetimeStr) {
+    const d = this.parseBookingStartLocal(datetimeStr);
+    if (!d) return false;
+    return d.getTime() - Date.now() > 24 * 60 * 60 * 1000;
+  }
+
+  formatBookingWhen(datetime, timeEnd) {
+    if (!datetime) return '';
+    const d = this.parseBookingStartLocal(datetime);
+    if (!d) return String(datetime).replace('T', ' ');
+    const ds = d.toLocaleDateString('es-ES', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+    const ts = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    const end = timeEnd && String(timeEnd).trim();
+    if (end) return `${ds}, ${ts} – ${end}`;
+    return `${ds}, ${ts}`;
+  }
+
+  async openBookingDetailModal(bookingId) {
+    try {
+      const res = await BookingAPI.getBooking(this.authToken, bookingId);
+      if (!res || !res.success || !res.data) throw new Error();
+      const d = res.data;
+      const t = d.teacher || {};
+      const esc = (s) =>
+        String(s || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/"/g, '&quot;');
+      const modLabel =
+        d.sessionModality === 'virtual'
+          ? 'Virtual'
+          : d.sessionModality === 'presencial'
+            ? 'Presencial'
+            : '';
+      const modLine = modLabel ? `<p><strong>Modalidad de la clase:</strong> ${esc(modLabel)}</p>` : '';
+      const contactBlock =
+        (t.email || t.phone)
+          ? `<div class="booking-detail-contact"><strong>Contacto del profesor (clase virtual)</strong>
+            ${t.email ? `<div class="booking-detail-line"><span class="booking-detail-k">Email:</span> <span class="booking-detail-v">${esc(t.email)}</span></div>` : ''}
+            ${t.phone ? `<div class="booking-detail-line"><span class="booking-detail-k">Teléfono:</span> <span class="booking-detail-v">${esc(t.phone)}</span></div>` : ''}
+            </div>`
+          : '';
+      const loc =
+        t.location && String(t.location).trim()
+          ? `<p><strong>Ubicación:</strong> ${esc(String(t.location))}</p>`
+          : '';
+
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.innerHTML = `
+        <div class="modal-panel">
+          <button type="button" class="modal-close" aria-label="Cerrar">×</button>
+          <h3>Detalle de la reserva</h3>
+          <p><strong>Profesor:</strong> ${esc(t.firstName)} ${esc(t.lastName)}</p>
+          <p><strong>Fecha y hora:</strong> ${esc(this.formatBookingWhen(d.datetime, d.timeEnd))}</p>
+          ${modLine}
+          ${loc}
+          ${d.message ? `<p><strong>Tu nota:</strong> ${esc(d.message)}</p>` : ''}
+          ${contactBlock}
+        </div>`;
+      document.body.appendChild(overlay);
+      const close = () => overlay.remove();
+      overlay.querySelector('.modal-close').onclick = close;
+      overlay.addEventListener('click', (ev) => {
+        if (ev.target === overlay) close();
+      });
+    } catch (e) {
+      showAlert('No se pudo cargar el detalle de la reserva', 'error');
+    }
+  }
+
+  async renderFavoritesPage(main) {
+    await this.refreshFavoriteIds();
+    main.innerHTML = `
+      <div class="container page-favoritos">
+        <div class="detail-header">
+          <div class="detail-header-left"><h1>Profesores favoritos</h1></div>
+        </div>
+        <div id="favoritesGrid" class="teachers-grid favorites-grid"><p>Cargando…</p></div>
+      </div>`;
+    const grid = document.getElementById('favoritesGrid');
+    try {
+      const res = await FavoriteAPI.listTeachers(this.authToken);
+      if (!res || !res.success) throw new Error();
+      const list = res.data || [];
+      grid.innerHTML = '';
+      if (!list.length) {
+        grid.innerHTML = '<p class="muted">No tenés favoritos todavía.</p>';
+        return;
+      }
+      list.forEach((teacher) => {
+        grid.appendChild(createTeacherCard(teacher, null, this.favoriteTeacherIds));
+      });
+    } catch (e) {
+      grid.innerHTML = `
+        <div class="availability-inline-error">
+          <p>No se pudieron cargar los favoritos.</p>
+          <button type="button" class="btn btn-outline" id="retryFav">Reintentar</button>
+        </div>`;
+      const r = document.getElementById('retryFav');
+      if (r) r.onclick = () => this.renderFavoritesPage(main);
     }
   }
 
@@ -2614,33 +3891,33 @@ class EstudiusApp {
                 <div class="form-error"></div>
               </div>
 
-              <div class="form-row">
-                <div class="form-group required">
-                  <label>Modalidad</label>
-                  <div style="display: flex; gap: var(--spacing-md); align-items: center;">
-                    <label class="filter-chip">
-                      <input type="checkbox" name="modalities" value="virtual" ${Array.isArray(teacher.modalities) && teacher.modalities.includes('virtual') ? 'checked' : ''} />
-                      Virtual
-                    </label>
-                    <label class="filter-chip">
-                      <input type="checkbox" name="modalities" value="presencial" ${Array.isArray(teacher.modalities) && teacher.modalities.includes('presencial') ? 'checked' : ''} />
-                      Presencial
-                    </label>
-                  </div>
-                  <div class="form-error"></div>
+              <div class="form-group required modality-field-group">
+                <span class="modality-field-label">Modalidad de las clases</span>
+                <div class="modality-picker" role="group" aria-label="Modalidad">
+                  <label class="modality-option">
+                    <input type="checkbox" name="modalities" value="virtual" ${Array.isArray(teacher.modalities) && teacher.modalities.includes('virtual') ? 'checked' : ''} />
+                    <span class="modality-option-text">Virtual</span>
+                  </label>
+                  <label class="modality-option">
+                    <input type="checkbox" name="modalities" value="presencial" ${Array.isArray(teacher.modalities) && teacher.modalities.includes('presencial') ? 'checked' : ''} />
+                    <span class="modality-option-text">Presencial</span>
+                  </label>
                 </div>
+                <div class="form-error"></div>
+              </div>
 
+              <div class="form-row">
                 <div class="form-group required">
                   <label for="classSize">Cantidad de Alumnos</label>
                   <input type="number" id="classSize" name="classSize" min="1" max="40" value="${teacher.classSize}" required />
                   <div class="form-error"></div>
                 </div>
+              </div>
 
-                <div class="form-group required">
-                  <label for="schedules">Horarios</label>
-                  <input type="text" id="schedules" name="schedules" placeholder="ej: Lu-Mi-Vie 15:00-17:00" value="${teacher.schedules}" required />
-                  <div class="form-error"></div>
-                </div>
+              <div class="form-group required" id="scheduleBuilderHost">
+                <label>Franjas horarias en las que dictás clases</label>
+                <div id="scheduleBuilderRoot"></div>
+                <div class="form-error"></div>
               </div>
 
               <div class="form-group">
@@ -2685,6 +3962,10 @@ class EstudiusApp {
         await this.handleEditTeacher(teacher.id);
       });
 
+      setTimeout(() => {
+        this.initScheduleBuilder(document.getElementById('scheduleBuilderRoot'), teacher.schedules);
+      }, 0);
+
       // Limpiar errores cuando se edita
       editForm.querySelectorAll('input, textarea, select').forEach(field => {
         field.addEventListener('input', () => {
@@ -2716,7 +3997,7 @@ class EstudiusApp {
       curriculum: data.get('curriculum'),
       modalities: modalities,
       classSize: parseInt(data.get('classSize')),
-      schedules: data.get('schedules'),
+      schedules: this.collectSchedulePayloadFromBuilder(document.getElementById('scheduleBuilderRoot')),
       location: data.get('location') || null,
       subjects: subjects
     };
@@ -2732,7 +4013,7 @@ class EstudiusApp {
       description: [!updateData.description, 'La descripción es requerida'],
       curriculum: [!updateData.curriculum, 'El temario es requerido'],
       classSize: [!validateClassSize(updateData.classSize), 'La cantidad de alumnos debe estar entre 1 y 40'],
-      schedules: [!updateData.schedules, 'Los horarios son requeridos']
+      modalities: [!modalities || modalities.length === 0, 'Seleccioná al menos una modalidad']
     };
 
     let errors = [];
@@ -2741,6 +4022,25 @@ class EstudiusApp {
         errors.push(message);
         setFieldError(field, message);
       }
+    }
+
+    const schEd = this.collectSchedulePayloadFromBuilder(document.getElementById('scheduleBuilderRoot'));
+    if (!schEd.slots || schEd.slots.length === 0) {
+      errors.push('Agregá al menos una franja con día y horario');
+    } else {
+      for (const sl of schEd.slots) {
+        const a = ScheduleUtils.timeToMinutes(sl.start);
+        const b = ScheduleUtils.timeToMinutes(sl.end);
+        if (a == null || b == null || b <= a) {
+          errors.push('En cada franja, la hora hasta debe ser mayor que la hora desde');
+          break;
+        }
+      }
+    }
+
+    if (modalities.includes('presencial') && !(updateData.location && String(updateData.location).trim())) {
+      errors.push('La ubicación es requerida para clases presenciales');
+      setFieldError('location', 'Ubicación requerida');
     }
 
     if (errors.length > 0) {
@@ -2757,7 +4057,7 @@ class EstudiusApp {
       await TeacherAPI.updateTeacher(teacherId, updateData);
       showAlert('✓ Profesor actualizado correctamente', 'success');
       setTimeout(() => {
-        window.location.hash = `/teacher/${teacherId}`;
+        window.location.hash = `teacher/${teacherId}`;
       }, 1000);
     } catch (error) {
       showAlert('Error al actualizar profesor: ' + error.message, 'error');

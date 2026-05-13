@@ -82,7 +82,7 @@ const TeacherModel = {
   subjects: Array,             // Obligatorio, array de materias
   modality: String,            // Obligatorio (deprecated): 'virtual' | 'presencial'
   modalities: Array,          // Nueva: puede contener ['virtual','presencial']
-  schedules: String,           // Obligatorio, texto con horarios
+  schedules: Object,           // Obligatorio: { version, slots[{dow,start,end}], notes? } — mínimo una franja
   location: String,            // Obligatorio si presencial, NULL si virtual
   
   // Metadata
@@ -90,6 +90,8 @@ const TeacherModel = {
   updatedAt: String,           // Timestamp automático
   views: Number               // Para algoritmo de recomendación
 };
+
+const { validateScheduleShape } = require('../lib/scheduleUtils');
 
 // Validación de campos
 const ValidateTeacher = {
@@ -155,7 +157,7 @@ const ValidateTeacher = {
   },
   
   schedules: (value) => {
-    return typeof value === 'string' && value.trim().length > 0;
+    return validateScheduleShape(value).ok;
   },
   
   location: (value, modalityOrModalities) => {

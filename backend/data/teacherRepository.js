@@ -3,6 +3,7 @@
 // =====================================================
 
 const { dbAll, dbGet, dbRun } = require('../database/db');
+const { parseSchedulesField } = require('../lib/scheduleUtils');
 const fs = require('fs');
 const path = require('path');
 
@@ -65,13 +66,15 @@ function normalizeTeacherRow(row) {
   };
 
   const description = sanitizeDescription(row.description);
+  const schedules = parseSchedulesField(row.schedules);
 
   return {
     ...row,
     subjects,
     modalities,
     photo,
-    description
+    description,
+    schedules
   };
 }
 
@@ -104,6 +107,9 @@ class TeacherRepository {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
+    const schedulesStr =
+      typeof schedules === 'string' ? schedules : JSON.stringify(schedules);
+
     const result = await dbRun(sql, [
       firstName,
       lastName,
@@ -117,7 +123,7 @@ class TeacherRepository {
       JSON.stringify(subjects),
       modality,
       modalities ? JSON.stringify(modalities) : null,
-      schedules,
+      schedulesStr,
       location || null
     ]);
 
