@@ -1,17 +1,10 @@
 # 📚 ESTUDIUS - Profesores particulares
 
-Una aplicación web moderna para conectar estudiantes con tutores privados. Permite buscar, filtrar y contactar profesores en diferentes disciplinas con una interfaz intuitiva y responsive.
+Una aplicación web moderna para conectar estudiantes con tutores privados. Permite buscar, filtrar y contactar profesores en diferentes disciplinas con una interfaz intuitiva y responsiva.
 
 **Slogan:** "Si querés estudiar, Estudius es el lugar"
 
 ---
-
-## 🔄 Cambios recientes
-
-- `Backend/seed-teachers.js` ahora genera **40** profesores por defecto (ejecutar desde `Backend/` con `node seed-teachers.js`).
-- Nuevos scripts en `Backend/`: `assign-photos.js` (asigna fotos desde `Frontend/Assets/uploads`) y `remove-subjects.js` (elimina materias específicas de los perfiles).
-- Las materias `Python` y `JavaScript` fueron removidas de la lista por defecto. Para restaurarlas o editarlas, actualizar `Backend/models/teacherModel.js` y `Frontend/js/api.js`.
-- El logo ahora se configura vía `Frontend/js/config.js` (`SITE_LOGO_PATH`) y el header/logo se agrandó (header 140px, logo ~120×120). Las fotos de profesor usan `object-fit: contain` para evitar recortes de rostros.
 
 ## 📋 Tabla de Contenidos
 
@@ -36,7 +29,7 @@ Una aplicación web moderna para conectar estudiantes con tutores privados. Perm
 - ✅ Ver detalles completos de cada profesor
 - ✅ Filtrar por modalidad (virtual/presencial)
 - ✅ Paginación en listados
-- ✅ Interfaz intuitiva y responsive
+- ✅ Interfaz intuitiva y responsiva
 
 ### Para Administradores
 - ✅ Agregar nuevos profesores
@@ -46,7 +39,7 @@ Una aplicación web moderna para conectar estudiantes con tutores privados. Perm
 - ✅ Información detallada de clases
 
 ### Sistema
-- ✅ Arquitectura en 3 capas (Frontend, API, Base de Datos)
+- ✅ Arquitectura en 3 capas (Frontend, API, Backend)
 - ✅ Base de datos SQLite local
 - ✅ Algoritmo de recomendación inteligente
 - ✅ Validaciones frontend y backend
@@ -102,19 +95,7 @@ Una aplicación web moderna para conectar estudiantes con tutores privados. Perm
 cd estudius
 ```
 
-### 2. Instalar dependencias del backend
-
-```bash
-cd Backend
-npm install
-```
-
-Este comando instala:
-- **express**: Framework web
-- **cors**: Manejo de CORS
-- **sqlite3**: Driver de base de datos
-
-### 3. Estructura de carpetas
+### 2. Estructura de carpetas
 
 ```
 estudius/
@@ -132,33 +113,17 @@ estudius/
 
 ## 🎯 Ejecución
 
-### Paso 0 (Opcional): Poblar la base de datos con datos de ejemplo
+### Paso 1: Iniciar el Servidor 
 
-Si querés poblar la base de datos local con datos de ejemplo y asignar fotos automáticamente, desde la carpeta `Backend/` ejecutá:
+Ejecutar iniciar-estudius-red.bat
 
-```bash
-# Generar 40 profesores de ejemplo
-node seed-teachers.js
-
-# Asignar fotos desde Frontend/Assets/uploads a los perfiles
-node assign-photos.js
-
-# (Opcional) Quitar materias específicas de los perfiles
-node remove-subjects.js
-```
-
-### Paso 1: Iniciar el Servidor Backend
-
-```bash
-cd Backend
-npm start
-```
 
 Salida esperada:
 ```
-[OK] ESTUDIUS - Servidor iniciado
-[OK] URL: http://localhost:3000
-[OK] Presiona Ctrl+C para detener
+[OK] URLs cuando el servidor arranque:
+     PC:       http://localhost:3000
+     Celular:  http://192.168.11.38:3000
+     (HTTPS)   https://192.168.11.38:3443
 ```
 
 El servidor:
@@ -464,13 +429,6 @@ Dibujo, Pintura, Música
 3. **SQL Injections**: Se usan prepared statements
 4. **Email Único**: Constraint a nivel BD
 5. **Tipos de Datos**: Validación estricta de tipos
-
-### Futuras Mejoras
-- [ ] Autenticación y autorización
-- [ ] Hashing de contraseñas
-- [ ] Rate limiting
-- [ ] Logs de auditoría
-- [ ] HTTPS en producción
 
 ---
 
