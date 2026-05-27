@@ -1,4 +1,4 @@
-const { dbAll, dbGet, dbRun } = require('../database/db');
+const { dbAll, dbGet, dbRun } = require('../../Database/db');
 
 class UserRepository {
   static async create({ firstName, lastName, email, passwordHash, role = 'user', color = null }) {

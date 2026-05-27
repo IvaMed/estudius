@@ -1,0 +1,49 @@
+================================================================================
+ESTUDIUS - Resumen de entrega
+================================================================================
+
+QUE ES
+------
+Plataforma web para buscar profesores particulares, ver su perfil (materias,
+horarios, modalidad virtual/presencial) y reservar clases. Los administradores
+mantienen el catalogo; los alumnos registrados reservan y guardan favoritos.
+
+SLOGAN
+------
+Si queres estudiar, Estudius es el lugar.
+
+COMO ARRANCAR
+-------------
+1) Doble clic en iniciar-estudius-red.bat  (PC + celular en Wi-Fi)
+   o
+2) cd Backend -> npm install -> npm start -> http://localhost:3000
+
+SUPER-ADMIN (unica cuenta; cambiar en produccion)
+-------------------------------------------------
+Email: admin@gmail.com
+Password: contraseña
+(Gestion de usuarios solo con esta cuenta)
+
+USUARIO EJEMPLO "HISTORIAL" (reservas pasadas)
+----------------------------------------------
+Email: historial@gmail.com
+Password: Historial123!
+Crear con: cd Backend && node scripts/seed-historial-user.js
+
+ESTRUCTURA
+----------
+Frontend/     Interfaz web
+Backend/      Servidor y logica
+Apis/         Rutas y controladores REST
+Database/     SQLite
+Documentacion/  Guias (capturas en subcarpeta aparte)
+
+STACK
+-----
+HTML + CSS + JavaScript | Node.js + Express | SQLite
+
+MAS INFO
+--------
+README.md y Documentacion/INDICE.md
+
+================================================================================

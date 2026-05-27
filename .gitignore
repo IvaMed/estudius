@@ -4,9 +4,9 @@ package-lock.json
 yarn.lock
 
 # Database
-database/estudius.db
-database/*.sqlite
-database/*.db
+Database/estudius.db
+Database/*.sqlite
+Database/*.db
 
 # Logs
 logs/

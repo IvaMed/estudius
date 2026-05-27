@@ -1,9 +1,9 @@
 Carpeta para fotos de profesores
 
 Rutas (workspace):
-- frontend/assets/uploads
-- frontend/assets/uploads/hombres
-- frontend/assets/uploads/mujeres
+- Frontend/Assets/uploads
+- Frontend/Assets/uploads/hombres
+- Frontend/Assets/uploads/mujeres
 
 Formato aceptado: `.jpg` o `.jpeg` (recomendado `.jpg`).
 Tamaño sugerido: 800×800 px (cuadrado) para mejores resultados.

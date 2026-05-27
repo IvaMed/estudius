@@ -8,10 +8,10 @@ Una aplicación web moderna para conectar estudiantes con tutores privados. Perm
 
 ## 🔄 Cambios recientes
 
-- `backend/seed-teachers.js` ahora genera **40** profesores por defecto (ejecutar desde `backend/` con `node seed-teachers.js`).
-- Nuevos scripts en `backend/`: `assign-photos.js` (asigna fotos desde `frontend/assets/uploads`) y `remove-subjects.js` (elimina materias específicas de los perfiles).
-- Las materias `Python` y `JavaScript` fueron removidas de la lista por defecto. Para restaurarlas o editarlas, actualizar `backend/models/teacherModel.js` y `frontend/js/api.js`.
-- El logo ahora se configura vía `frontend/js/config.js` (`SITE_LOGO_PATH`) y el header/logo se agrandó (header 140px, logo ~120×120). Las fotos de profesor usan `object-fit: contain` para evitar recortes de rostros.
+- `Backend/seed-teachers.js` ahora genera **40** profesores por defecto (ejecutar desde `Backend/` con `node seed-teachers.js`).
+- Nuevos scripts en `Backend/`: `assign-photos.js` (asigna fotos desde `Frontend/Assets/uploads`) y `remove-subjects.js` (elimina materias específicas de los perfiles).
+- Las materias `Python` y `JavaScript` fueron removidas de la lista por defecto. Para restaurarlas o editarlas, actualizar `Backend/models/teacherModel.js` y `Frontend/js/api.js`.
+- El logo ahora se configura vía `Frontend/js/config.js` (`SITE_LOGO_PATH`) y el header/logo se agrandó (header 140px, logo ~120×120). Las fotos de profesor usan `object-fit: contain` para evitar recortes de rostros.
 
 ## 📋 Tabla de Contenidos
 
@@ -105,7 +105,7 @@ cd estudius
 ### 2. Instalar dependencias del backend
 
 ```bash
-cd backend
+cd Backend
 npm install
 ```
 
@@ -118,9 +118,14 @@ Este comando instala:
 
 ```
 estudius/
-├── frontend/          # Aplicación web (HTML5, CSS3, JS)
-├── backend/           # API REST (Node.js + Express)
-└── database/          # Esquema y datos SQLite
+├── README.md
+├── iniciar-estudius-red.bat
+├── Frontend/              # Aplicación web (HTML5, CSS3, JS)
+│   └── Assets/            # Imágenes y uploads
+├── Backend/               # Servidor Node.js + lógica de negocio
+├── Apis/                  # Rutas y controladores HTTP
+├── Database/              # Esquema y datos SQLite
+└── Documentación/         # Guías y capturas de pantalla
 ```
 
 ---
@@ -129,13 +134,13 @@ estudius/
 
 ### Paso 0 (Opcional): Poblar la base de datos con datos de ejemplo
 
-Si querés poblar la base de datos local con datos de ejemplo y asignar fotos automáticamente, desde la carpeta `backend/` ejecutá:
+Si querés poblar la base de datos local con datos de ejemplo y asignar fotos automáticamente, desde la carpeta `Backend/` ejecutá:
 
 ```bash
 # Generar 40 profesores de ejemplo
 node seed-teachers.js
 
-# Asignar fotos desde frontend/assets/uploads a los perfiles
+# Asignar fotos desde Frontend/Assets/uploads a los perfiles
 node assign-photos.js
 
 # (Opcional) Quitar materias específicas de los perfiles
@@ -145,7 +150,7 @@ node remove-subjects.js
 ### Paso 1: Iniciar el Servidor Backend
 
 ```bash
-cd backend
+cd Backend
 npm start
 ```
 
@@ -158,7 +163,7 @@ Salida esperada:
 
 El servidor:
 - Inicia en `http://localhost:3000`
-- Sirve archivos estáticos del frontend en el directorio `frontend/`
+- Sirve archivos estáticos del frontend en el directorio `Frontend/`
 - Expone la API en `/api`
 - Inicializa automáticamente la base de datos SQLite
 
@@ -175,48 +180,46 @@ http://localhost:3000
 
 ### Frontend
 ```
-frontend/
-├── index.html              # Página principal
-├── css/
-│   └── styles.css         # Estilos globales (1000+ líneas)
-└── js/
-    ├── app.js             # Lógica principal
-    ├── api.js             # Cliente HTTP
-    └── utils.js           # Funciones auxiliares
+Frontend/
+├── index.html
+├── Assets/uploads/         # Fotos de profesores
+├── css/styles.css
+└── js/                     # app.js, api.js, utils.js, config.js
+```
+
+### Apis
+```
+Apis/
+├── routes/                 # Definición de endpoints REST
+└── controllers/            # Manejo de solicitudes HTTP
 ```
 
 ### Backend
 ```
-backend/
-├── server.js              # Punto de entrada
-├── package.json           # Dependencias
-├── config.js              # Configuración (futuro)
-├── routes/
-│   └── teacherRoutes.js    # Rutas API
-├── controllers/
-│   └── teacherController.js # Lógica HTTP
-├── services/
-│   └── teacherService.js    # Lógica de negocio
-├── data/
-│   └── teacherRepository.js # Acceso a BD
+Backend/
+├── server.js               # Punto de entrada Express
+├── package.json
+├── services/               # Lógica de negocio
+├── data/                   # Repositorios
 ├── models/
-│   └── teacherModel.js      # Esquema de datos
 ├── middleware/
-│   ├── validation.js        # Validaciones
-│   └── errorHandler.js      # Manejo de errores
-├── scripts/
-│   ├── seed-teachers.js     # Población de DB con 40 profesores (node seed-teachers.js)
-│   ├── assign-photos.js     # Asigna fotos desde frontend/assets/uploads
-│   └── remove-subjects.js   # Limpia materias específicas en perfiles
-└── database/
-    └── db.js               # Conexión SQLite
+├── lib/
+└── scripts/                # Utilidades (seed, fotos, etc.)
 ```
 
-### Base de Datos
+### Database
 ```
-database/
-├── schema.sql              # Esquema SQL
-└── estudius.db            # Archivo SQLite (creado automáticamente)
+Database/
+├── schema.sql
+├── db.js                   # Conexión SQLite
+└── estudius.db             # Creado automáticamente al iniciar
+```
+
+### Documentación
+```
+Documentación/
+├── Capturas de pantalla/
+└── (guías .md, bitácora, etc.)
 ```
 
 ---
@@ -334,7 +337,7 @@ GET /api/teachers/search?modality=virtual&subject=Programación&search=Juan
 - Edad: Número entre 1-149
 - Email: Formato válido y único en BD
 - Teléfono: Formato válido (si se proporciona)
-- Materias: Array válido de materias conocidas
+- Materias: Array válido de materias conocidas y materias custom registradas en BD
 - Modalidad: "virtual" o "presencial"
 - Ubicación: Obligatoria si modalidad es presencial
 - Descripción: Texto no vacío
@@ -377,7 +380,7 @@ El algoritmo de recomendación utiliza múltiples factores:
 ### Inicialización Automática
 La base de datos se crea automáticamente al iniciar el servidor:
 
-1. Se leen las tablas del archivo `database/schema.sql`
+1. Se leen las tablas del archivo `Database/schema.sql`
 2. Se crean las tablas si no existen
 3. Se habilitan las foreign keys
 4. Se crean índices para optimización
@@ -487,7 +490,7 @@ npm install
 
 ### La BD no se crea
 ```bash
-# Verificar permisos en la carpeta database/
+# Verificar permisos en la carpeta Database/
 # Asegurarse de que schema.sql exista
 
 # Reiniciar el servidor

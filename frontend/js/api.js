@@ -2,7 +2,12 @@
 // API CLIENT - Comunicación con Backend
 // ========================================
 
-const API_BASE_URL = 'http://localhost:3000/api';
+/** Misma máquina que sirve la página (PC o celular en la red local). */
+const API_BASE_URL =
+  (typeof window !== 'undefined' && window.__ESTUDIUS_API_BASE) ||
+  (typeof window !== 'undefined' && window.location && window.location.origin
+    ? `${window.location.origin}/api`
+    : 'http://localhost:3000/api');
 
 class TeacherAPI {
   /**
@@ -37,6 +42,17 @@ class TeacherAPI {
       return await httpRequest('GET', `${API_BASE_URL}/teachers/${id}`);
     } catch (error) {
       console.error('Error al obtener profesor:', error);
+      throw error;
+    }
+  }
+
+  /** Disponibilidad por día (público) */
+  static async getTeacherAvailability(id, fromYmd, toYmd) {
+    try {
+      const q = new URLSearchParams({ from: fromYmd, to: toYmd });
+      return await httpRequest('GET', `${API_BASE_URL}/teachers/${id}/availability?${q}`);
+    } catch (error) {
+      console.error('Error al obtener disponibilidad:', error);
       throw error;
     }
   }
@@ -123,6 +139,13 @@ class TeacherAPI {
       if (filters.modality) params.append('modality', filters.modality);
       if (filters.subject) params.append('subject', filters.subject);
       if (filters.search) params.append('search', filters.search);
+      if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
+      if (filters.dateTo) params.append('dateTo', filters.dateTo);
+      if (filters.timeStart) params.append('timeStart', filters.timeStart);
+      if (filters.timeEnd) params.append('timeEnd', filters.timeEnd);
+      if (filters.dow !== undefined && filters.dow !== null && String(filters.dow).trim() !== '') {
+        params.append('dow', String(filters.dow));
+      }
 
       const response = await fetch(`${API_BASE_URL}/teachers/search?${params}`);
       return await response.json();
@@ -274,6 +297,92 @@ class BookingAPI {
       console.error('Error en BookingAPI.getMyBookings:', error);
       throw error;
     }
+  }
+
+  static async getBooking(token, id) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bookings/${id}`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const json = await response.json();
+      if (!response.ok) {
+        const err = new Error(json.message || 'Error al obtener la reserva');
+        err.details = json;
+        throw err;
+      }
+      return json;
+    } catch (error) {
+      console.error('Error en BookingAPI.getBooking:', error);
+      throw error;
+    }
+  }
+
+  static async deleteBooking(token, id) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bookings/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const json = await response.json();
+      if (!response.ok) {
+        const err = new Error(json.message || 'Error al eliminar');
+        err.details = json;
+        throw err;
+      }
+      return json;
+    } catch (error) {
+      console.error('Error en BookingAPI.deleteBooking:', error);
+      throw error;
+    }
+  }
+}
+
+class FavoriteAPI {
+  static async listIds(token) {
+    const response = await fetch(`${API_BASE_URL}/favorites/ids`, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return await response.json();
+  }
+
+  static async listTeachers(token) {
+    const response = await fetch(`${API_BASE_URL}/favorites`, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return await response.json();
+  }
+
+  static async toggle(token, teacherId) {
+    const id = parseInt(String(teacherId).trim(), 10);
+    if (!Number.isFinite(id) || id < 1) {
+      throw new Error('Profesor no válido para favoritos');
+    }
+    const response = await fetch(`${API_BASE_URL}/favorites/toggle`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ teacherId: id })
+    });
+    const json = await response.json();
+    if (!response.ok) {
+      const err = new Error(json.message || 'Error al actualizar favorito');
+      err.details = json;
+      throw err;
+    }
+    return json;
+  }
+
+  static async remove(token, teacherId) {
+    const response = await fetch(`${API_BASE_URL}/favorites?teacherId=${encodeURIComponent(teacherId)}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return await response.json();
   }
 }
 

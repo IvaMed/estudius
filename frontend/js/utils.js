@@ -2,6 +2,53 @@
 // UTILIDADES - Funciones auxiliares
 // ========================================
 
+/** Primera letra visible del perfil (nombre, apellido o email). */
+function userAvatarInitial(user) {
+  const letterFrom = (s) => {
+    const t = String(s || '').trim();
+    if (!t) return '';
+    const m = t.match(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/);
+    return m ? m[0] : t.charAt(0);
+  };
+  let ch = letterFrom(user && user.firstName) || letterFrom(user && user.lastName);
+  if (!ch && user && user.email) {
+    const local = String(user.email).split('@')[0] || '';
+    ch = letterFrom(local) || (local ? local.charAt(0) : '');
+  }
+  return (ch || 'U').toUpperCase();
+}
+
+/** Relativo luminance 0–1 para hex #RRGGBB o rgb(). */
+function relativeLuminanceFromCssColor(css) {
+  const s = String(css || '').trim();
+  let r = 0.2;
+  let g = 0.2;
+  let b = 0.2;
+  const hex = s.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hex) {
+    let h = hex[1];
+    if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+    r = parseInt(h.slice(0, 2), 16) / 255;
+    g = parseInt(h.slice(2, 4), 16) / 255;
+    b = parseInt(h.slice(4, 6), 16) / 255;
+  } else {
+    const m = s.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    if (m) {
+      r = parseInt(m[1], 10) / 255;
+      g = parseInt(m[2], 10) / 255;
+      b = parseInt(m[3], 10) / 255;
+    }
+  }
+  const lin = (x) => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+
+/** Texto legible sobre el color de fondo del avatar. */
+function contrastingAvatarTextColor(backgroundCss) {
+  const L = relativeLuminanceFromCssColor(backgroundCss);
+  return L > 0.55 ? '#1a1d21' : '#ffffff';
+}
+
 /**
  * Hacer una solicitud HTTP
  */
@@ -60,6 +107,42 @@ function formatDate(dateString) {
  */
 function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
+ * Normalizar texto para búsqueda: minúsculas y sin tildes (NFD + quitar marcas combinantes).
+ */
+function normalizeSearchText(str) {
+  if (str == null || str === '') return '';
+  return String(str)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+/** true si needle (texto crudo) aparece en haystack ignorando mayúsculas y tildes */
+function normalizedIncludes(haystack, queryRaw) {
+  const q = normalizeSearchText(queryRaw);
+  if (!q) return true;
+  return normalizeSearchText(haystack).includes(q);
+}
+
+/**
+ * Primer rango [start, end) en label que coincide con queryRaw (acentos / mayúsculas).
+ */
+function accentInsensitiveMatchRange(label, queryRaw) {
+  const h = String(label || '');
+  const nq = normalizeSearchText(queryRaw);
+  if (!nq) return null;
+  for (let i = 0; i < h.length; i++) {
+    if (!normalizeSearchText(h.slice(i)).startsWith(nq)) continue;
+    for (let k = i + 1; k <= h.length; k++) {
+      const sub = normalizeSearchText(h.slice(i, k));
+      if (!sub.startsWith(nq)) break;
+      if (sub.length >= nq.length) return [i, k];
+    }
+  }
+  return null;
 }
 
 /**
@@ -231,11 +314,22 @@ function debounce(func, delay) {
 
 /**
  * Crear grid de profesores
+ * @param {object} teacher
+ * @param {string|null} highlightSubject
+ * @param {Set<number>|null} favoriteIds ids de profesores favoritos
  */
-function createTeacherCard(teacher, highlightSubject = null) {
+function createTeacherCard(teacher, highlightSubject = null, favoriteIds = null) {
   const card = document.createElement('div');
   card.className = 'teacher-card';
   card.style.cursor = 'pointer';
+  const numericId = Number(teacher && teacher.id);
+  const idOk = Number.isFinite(numericId) && numericId > 0;
+  card.dataset.teacherId = idOk ? String(numericId) : '';
+
+  const favSet = favoriteIds instanceof Set ? favoriteIds : null;
+  const isFav = favSet && idOk ? favSet.has(numericId) : false;
+  const heartSvg =
+    '<svg class="teacher-card-fav-icon" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>';
   
   // Parsear subjects si es string
   const subjects = Array.isArray(teacher.subjects) 
@@ -278,7 +372,10 @@ function createTeacherCard(teacher, highlightSubject = null) {
       <img src="${photoSrc}" alt="${teacher.firstName} ${teacher.lastName}" onerror="this.onerror=null;this.src='/assets/uploads/default-avatar.svg'" />
     </div>
     <div class="teacher-card-content">
-      <div class="teacher-card-name">${teacher.firstName} ${teacher.lastName}</div>
+      <div class="teacher-card-head">
+        <div class="teacher-card-name">${teacher.firstName} ${teacher.lastName}</div>
+        <button type="button" class="teacher-card-fav${isFav ? ' is-favorite' : ''}" data-fav-teacher-id="${idOk ? numericId : ''}" aria-label="Marcar favorito" aria-pressed="${isFav ? 'true' : 'false'}" title="Favorito" ${idOk ? '' : 'disabled'}>${heartSvg}</button>
+      </div>
       <div class="teacher-card-subject">${subjectDisplay}</div>
       <div class="teacher-card-meta">
         <span>${modality}</span>
@@ -288,9 +385,19 @@ function createTeacherCard(teacher, highlightSubject = null) {
     </div>
   `;
 
-  // Navegar al detalle - toda la tarjeta es clickeable
-  card.addEventListener('click', () => {
-    window.location.hash = `teacher/${teacher.id}`;
+  const favBtn = card.querySelector('.teacher-card-fav');
+  if (favBtn && idOk) {
+    favBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (window.app && typeof window.app.onFavoriteClick === 'function') {
+        window.app.onFavoriteClick(numericId, e);
+      }
+    });
+  }
+
+  card.addEventListener('click', (e) => {
+    if (e.target.closest('.teacher-card-fav')) return;
+    if (idOk) window.location.hash = `teacher/${numericId}`;
   });
 
   return card;
@@ -310,6 +417,19 @@ function validateAge(age) {
 function validateClassSize(size) {
   const sizeInt = parseInt(size);
   return sizeInt > 0 && sizeInt <= 40;
+}
+
+function isPositiveIntegerString(value) {
+  if (value == null) return false;
+  const t = String(value).trim();
+  return /^[1-9]\d*$/.test(t);
+}
+
+function isApartmentValueValid(value) {
+  if (value == null) return true;
+  const t = String(value).trim();
+  if (!t) return true;
+  return /^[A-Za-z0-9\s]+$/.test(t);
 }
 
 /**
@@ -332,4 +452,48 @@ async function copyToClipboard(text) {
   } catch (err) {
     showAlert('Error al copiar', 'error');
   }
+}
+
+/** Dirección presencial: calle + número (+ dpto). */
+function formatTeacherLocation(teacher) {
+  if (!teacher) return '';
+  const street = String(teacher.locationStreet || '').trim();
+  const number = String(teacher.locationNumber || '').trim();
+  const apt = String(teacher.locationApartment || '').trim();
+  if (street && number) return apt ? `${street} ${number}, Dpto. ${apt}` : `${street} ${number}`;
+  return String(teacher.location || '').trim();
+}
+
+function collectLocationFromForm(prefix = '') {
+  const p = prefix ? `${prefix}` : '';
+  return {
+    locationStreet: (document.getElementById(`${p}locationStreet`)?.value || '').trim(),
+    locationNumber: (document.getElementById(`${p}locationNumber`)?.value || '').trim(),
+    locationApartment: (document.getElementById(`${p}locationApartment`)?.value || '').trim() || null
+  };
+}
+
+function locationFieldsHtml(values = {}, idPrefix = '') {
+  const p = idPrefix;
+  const street = values.locationStreet || '';
+  const number = values.locationNumber || '';
+  const apt = values.locationApartment || '';
+  return `
+    <div class="location-fields-grid">
+      <div class="form-group required">
+        <label for="${p}locationStreet">Calle</label>
+        <input type="text" id="${p}locationStreet" name="locationStreet" value="${street}" placeholder="Ej: Av. Corrientes" />
+        <div class="form-error"></div>
+      </div>
+      <div class="form-group required">
+        <label for="${p}locationNumber">Número</label>
+        <input type="text" id="${p}locationNumber" name="locationNumber" value="${number}" placeholder="Ej: 1234" inputmode="numeric" pattern="[0-9]*" />
+        <div class="form-error"></div>
+      </div>
+      <div class="form-group">
+        <label for="${p}locationApartment">Depto / Piso (opcional)</label>
+        <input type="text" id="${p}locationApartment" name="locationApartment" value="${apt}" placeholder="Ej: 4B" />
+        <div class="form-error"></div>
+      </div>
+    </div>`;
 }

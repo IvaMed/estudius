@@ -82,7 +82,7 @@ const TeacherModel = {
   subjects: Array,             // Obligatorio, array de materias
   modality: String,            // Obligatorio (deprecated): 'virtual' | 'presencial'
   modalities: Array,          // Nueva: puede contener ['virtual','presencial']
-  schedules: String,           // Obligatorio, texto con horarios
+  schedules: Object,           // Obligatorio: { version, slots[{dow,start,end}], notes? } — mínimo una franja
   location: String,            // Obligatorio si presencial, NULL si virtual
   
   // Metadata
@@ -90,6 +90,8 @@ const TeacherModel = {
   updatedAt: String,           // Timestamp automático
   views: Number               // Para algoritmo de recomendación
 };
+
+const { validateScheduleShape } = require('../lib/scheduleUtils');
 
 // Validación de campos
 const ValidateTeacher = {
@@ -130,9 +132,10 @@ const ValidateTeacher = {
     return Number.isInteger(value) && value > 0 && value <= 40;
   },
   
-  subjects: (value) => {
+  subjects: (value, allowedSubjects = ALL_SUBJECTS) => {
     if (!Array.isArray(value) || value.length === 0) return false;
-    return value.every(subject => ALL_SUBJECTS.includes(subject));
+    const allowed = Array.isArray(allowedSubjects) && allowedSubjects.length > 0 ? allowedSubjects : ALL_SUBJECTS;
+    return value.every(subject => allowed.includes(subject));
   },
   
   modality: (value) => {
@@ -155,22 +158,27 @@ const ValidateTeacher = {
   },
   
   schedules: (value) => {
-    return typeof value === 'string' && value.trim().length > 0;
+    return validateScheduleShape(value).ok;
   },
   
-  location: (value, modalityOrModalities) => {
-    // Accept either a single modality string or array of modalities
+  location: (data, modalityOrModalities) => {
     let requiresLocation = false;
     if (Array.isArray(modalityOrModalities)) {
       requiresLocation = modalityOrModalities.includes('presencial');
     } else {
       requiresLocation = modalityOrModalities === 'presencial';
     }
-
-    if (requiresLocation) {
-      return typeof value === 'string' && value.trim().length > 0;
-    }
-    return true; // Opcional si no requiere presencial
+    if (!requiresLocation) return true;
+    const payload = typeof data === 'object' && data !== null ? data : { location: data };
+    const street =
+      payload.locationStreet != null
+        ? String(payload.locationStreet).trim()
+        : String(payload.location || '').trim();
+    const number =
+      payload.locationNumber != null ? String(payload.locationNumber).trim() : '';
+    if (street && number) return true;
+    if (street && !number) return false;
+    return typeof payload.location === 'string' && payload.location.trim().length > 0;
   }
 };
 

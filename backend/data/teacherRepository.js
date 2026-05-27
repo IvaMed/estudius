@@ -2,12 +2,14 @@
 // CAPA DE DATOS - Repository (Acceso a BD)
 // =====================================================
 
-const { dbAll, dbGet, dbRun } = require('../database/db');
+const { dbAll, dbGet, dbRun } = require('../../Database/db');
+const { parseSchedulesField } = require('../lib/scheduleUtils');
+const { formatTeacherAddress, normalizeLocationPayload } = require('../lib/locationUtils');
 const fs = require('fs');
 const path = require('path');
 
 // Directorio de uploads del frontend (para fotos de ejemplo)
-const uploadsDir = path.join(__dirname, '../../frontend/assets/uploads');
+const uploadsDir = path.join(__dirname, '../../Frontend/Assets/uploads');
 
 function findPhotoForId(id) {
   const exts = ['jpeg', 'jpg', 'png', 'webp'];
@@ -65,13 +67,17 @@ function normalizeTeacherRow(row) {
   };
 
   const description = sanitizeDescription(row.description);
+  const schedules = parseSchedulesField(row.schedules);
+  const locationFormatted = formatTeacherAddress(row);
 
   return {
     ...row,
     subjects,
     modalities,
     photo,
-    description
+    description,
+    schedules,
+    location: locationFormatted || row.location || null
   };
 }
 
@@ -94,15 +100,29 @@ class TeacherRepository {
       modality,
       modalities,
       schedules,
-      location
+      location,
+      locationStreet,
+      locationNumber,
+      locationApartment
     } = teacherData;
+
+    const loc = normalizeLocationPayload({
+      locationStreet,
+      locationNumber,
+      locationApartment,
+      location
+    });
 
     const sql = `
       INSERT INTO teachers (
         firstName, lastName, age, email, phone, description, curriculum,
-        photo, classSize, subjects, modality, modalities, schedules, location
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        photo, classSize, subjects, modality, modalities, schedules,
+        location, locationStreet, locationNumber, locationApartment
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
+
+    const schedulesStr =
+      typeof schedules === 'string' ? schedules : JSON.stringify(schedules);
 
     const result = await dbRun(sql, [
       firstName,
@@ -117,8 +137,11 @@ class TeacherRepository {
       JSON.stringify(subjects),
       modality,
       modalities ? JSON.stringify(modalities) : null,
-      schedules,
-      location || null
+      schedulesStr,
+      loc.location,
+      loc.locationStreet,
+      loc.locationNumber,
+      loc.locationApartment
     ]);
 
     return result.id;

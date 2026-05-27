@@ -4,7 +4,8 @@
 
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
-const dbPath = path.join(__dirname, '..', 'database', 'estudius.db');
+const { migrateLegacyScheduleText, serializeScheduleForDb } = require('./lib/scheduleUtils');
+const dbPath = path.join(__dirname, '..', 'Database', 'estudius.db');
 
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
@@ -92,9 +93,9 @@ const descriptions = [
   'Docente dedicado con formación universitaria completa. Excelente dominio del tema y capacidad para explicar conceptos complejos de forma clara.',
   'Profesional con experiencia en enseñanza presencial y virtual. Utilizo recursos multimedia y ejercicios prácticos para mejor aprendizaje.',
   'Tutor responsable y comprometido. Adapto el ritmo de enseñanza a las necesidades individuales de cada alumno.',
-  'Educador con especialización. Ofrezco clases dinámicas e interactivas. Disponible para resolver dudas fuera del horario de clase.',
+  'Educador con especialización. Ofrezco clases dinámicas e interactivas.',
   'Docente con certificaciones internacionales. Creo en el aprendizaje significativo y el trabajo colaborativo.',
-  'Profesor entusiasta y accesible. Disponible para consultas y tutorías adicionales. Excelentes referencias de estudiantes anteriores.',
+  'Profesor entusiasta y accesible. Excelentes referencias de estudiantes anteriores.',
   'Tutor con experiencia en preparación para exámenes y oposiciones. Metodología probada con altos índices de éxito.',
   'Profesional bilingüe/multilingüe. Experiencia internacional. Metodología comunicativa y práctica.',
   'Educador innovador que utiliza las últimas herramientas tecnológicas para maximizar el aprendizaje de sus alumnos.'
@@ -128,9 +129,9 @@ const schedules = [
   'Lunes a Viernes: 09:00 a 13:00',
   'Martes y Jueves: 10:00 a 18:00',
   'Miércoles y Viernes: 14:00 a 20:00',
-  'Flexible - consultar disponibilidad',
-  'Mañanas y tardes - previa coordinación',
-  'Fines de semana disponible',
+  'Horario flexible',
+  'Mañanas y tardes',
+  'Fines de semana',
   'Horarios flexibles',
 ];
 
@@ -145,9 +146,23 @@ function randomElement(arr) {
 }
 
 // Función para generar email único
+// Normalizar texto removiendo tildes y caracteres no alfabéticos
+function normalizeForEmail(s) {
+  if (!s) return '';
+  return String(s)
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[^a-zA-Z0-9]/g, '.')
+    .replace(/\.+/g, '.')
+    .replace(/^\.|\.$/g, '')
+    .toLowerCase();
+}
+
+// Función para generar email con formato nombre.apellido.fakeprof@gmail.com
 function generateEmail(firstName, lastName, index) {
-  const timestamp = Date.now();
-  return `${firstName.toLowerCase()}.${lastName.toLowerCase()}.${index}@mail.com`;
+  const f = normalizeForEmail(firstName || 'user');
+  const l = normalizeForEmail(lastName || 'prof');
+  return `${f}.${l}.fakeprof@gmail.com`;
 }
 
 // Función para generar teléfono argentino
@@ -175,6 +190,11 @@ function generateTeacher(index) {
   const lastName = randomElement(lastNames);
   const modality = randomInt(0, 1) === 0 ? 'virtual' : 'presencial';
   
+  const modalitiesJson = JSON.stringify(
+    modality === 'virtual' ? ['virtual'] : ['presencial']
+  );
+  const schedulesJson = serializeScheduleForDb(migrateLegacyScheduleText(randomElement(schedules)));
+
   return {
     firstName: firstName,
     lastName: lastName,
@@ -187,7 +207,8 @@ function generateTeacher(index) {
     classSize: randomInt(1, 5),
     subjects: generateSubjects(),
     modality: modality,
-    schedules: randomElement(schedules),
+    modalities: modalitiesJson,
+    schedules: schedulesJson,
     location: modality === 'virtual' ? null : randomElement(locations),
     views: randomInt(0, 50)
   };
@@ -199,9 +220,9 @@ function insertTeacher(teacher) {
     const sql = `
       INSERT INTO teachers (
         firstName, lastName, age, email, phone, description,
-        curriculum, photo, classSize, subjects, modality,
+        curriculum, photo, classSize, subjects, modality, modalities,
         schedules, location, views
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
     db.run(
@@ -218,6 +239,7 @@ function insertTeacher(teacher) {
         teacher.classSize,
         teacher.subjects,
         teacher.modality,
+        teacher.modalities,
         teacher.schedules,
         teacher.location,
         teacher.views

@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { dbAll, dbGet, dbRun } = require('../database/db');
+const { dbAll, dbGet, dbRun } = require('../../Database/db');
 const { ALL_SUBJECTS } = require('../models/teacherModel');
 
 function randomInt(min, max) {
@@ -35,7 +35,7 @@ async function run() {
   try {
     await ensureModalitiesColumn();
 
-    const uploadsRoot = path.join(__dirname, '../../frontend/assets/uploads');
+    const uploadsRoot = path.join(__dirname, '../../Frontend/Assets/uploads');
 
     // Definir listas de nombres por género para evitar mezclar nombres/sexo
     const genders = [
@@ -63,7 +63,7 @@ async function run() {
       'Lun/Mié/Vie 18:00-20:00',
       'Mar/Jue 10:00-12:00',
       'Sábados 09:00-12:00',
-      'Flexible - consultar disponibilidad'
+      'Horario flexible'
     ];
 
     const locations = ['CABA - Centro','CABA - Norte','Gran Buenos Aires','La Plata'];

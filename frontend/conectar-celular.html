@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estudius - Conectar desde el celular</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 520px; margin: 24px auto; padding: 0 16px; line-height: 1.5; color: #1a2e28; }
+    h1 { font-size: 1.35rem; }
+    .warn { background: #fff3cd; border: 2px solid #e6a817; padding: 12px; border-radius: 10px; margin: 16px 0; }
+    code { background: #f0f4f2; padding: 2px 6px; border-radius: 4px; word-break: break-all; }
+    ol { padding-left: 1.2rem; }
+    li { margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Conectar Estudius desde el celular</h1>
+  <div class="warn">
+    <strong>ERR_SSL_PROTOCOL_ERROR</strong> aparece cuando el navegador usa <strong>https://</strong> pero el puerto <strong>3000</strong> solo habla <strong>http</strong> (sin cifrado).
+  </div>
+  <p><strong>Solución A — HTTP (recomendado):</strong></p>
+  <ol>
+    <li>Misma Wi‑Fi que la PC.</li>
+    <li>Escribí en Chrome <strong>completo</strong>: <code>http://TU-IP:3000</code> (con <code>http://</code>, no solo la IP).</li>
+    <li>Si Chrome cambia a https solo, desactivá en Ajustes → Privacidad → «Usar siempre conexiones seguras».</li>
+  </ol>
+  <p><strong>Solución B — HTTPS (puerto 3443):</strong></p>
+  <ol>
+    <li>Abrí <code>https://TU-IP:3443</code></li>
+    <li>Chrome mostrará «No es seguro» → <strong>Avanzado</strong> → <strong>Continuar</strong> (certificado local).</li>
+  </ol>
+  <p>Probá primero: <a id="healthLink" href="#">/api/health</a></p>
+  <script>
+    const host = location.hostname;
+    const p = location.port || (location.protocol === 'https:' ? '3443' : '3000');
+    document.getElementById('healthLink').href = location.protocol + '//' + host + ':' + p + '/api/health';
+    document.getElementById('healthLink').textContent = location.protocol + '//' + host + ':' + p + '/api/health';
+  </script>
+</body>
+</html>

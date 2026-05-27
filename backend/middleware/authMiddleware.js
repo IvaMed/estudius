@@ -4,6 +4,11 @@ const SECRET = process.env.JWT_SECRET || 'estudius_dev_secret_please_change';
 
 function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
+  try {
+    console.log(`[AUTH] ${new Date().toISOString()} ${req.method} ${req.path} from ${req.ip} Authorization=${authHeader ? authHeader.slice(0,20) : 'NONE'}`);
+  } catch (e) {
+    // ignore logging failures
+  }
   if (!authHeader) {
     return res.status(401).json({ success: false, message: 'Token faltante' });
   }
@@ -39,10 +44,20 @@ function requireUserRole(req, res, next) {
   return res.status(403).json({ success: false, message: 'Acceso denegado: se requiere cuenta de usuario' });
 }
 
+/** Reservas y listados de alumno: usuarios registrados y administradores. */
+function requireBookableRole(req, res, next) {
+  if (req.user && (req.user.role === 'user' || req.user.role === 'admin')) return next();
+  return res.status(403).json({
+    success: false,
+    message: 'Acceso denegado: iniciá sesión con una cuenta de usuario o administrador'
+  });
+}
+
 module.exports = {
   authenticate,
   requireAdmin,
   requireUserRole,
+  requireBookableRole,
   requireSuperAdmin,
 };
 

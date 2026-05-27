@@ -55,10 +55,10 @@ def ensure_modalities_column(conn):
 
 def main():
     base = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-    db_path = os.path.join(base, 'database', 'estudius.db')
-    schema_path = os.path.join(base, 'database', 'schema.sql')
-    model_path = os.path.join(base, 'backend', 'models', 'teacherModel.js')
-    uploads_root = os.path.join(base, 'frontend', 'assets', 'uploads')
+    db_path = os.path.join(base, 'Database', 'estudius.db')
+    schema_path = os.path.join(base, 'Database', 'schema.sql')
+    model_path = os.path.join(base, 'Backend', 'models', 'teacherModel.js')
+    uploads_root = os.path.join(base, 'Frontend', 'Assets', 'uploads')
 
     if not os.path.exists(db_path):
         print('Base de datos no encontrada en', db_path)
@@ -97,7 +97,7 @@ def main():
         'Lun/Mié/Vie 18:00-20:00',
         'Mar/Jue 10:00-12:00',
         'Sábados 09:00-12:00',
-        'Flexible - consultar disponibilidad'
+        'Horario flexible'
     ]
     locations = ['CABA - Centro','CABA - Norte','Gran Buenos Aires','La Plata']
 
@@ -129,7 +129,7 @@ def main():
                 curriculum = random_element(curriculums)
                 schedule = random_element(schedules)
                 location = random_element(locations) if 'presencial' in modalities else None
-                description = f"Profesor/a con experiencia en {', '.join(subj)}. Contacto: {phone}"
+                description = f"Profesor/a con experiencia en {', '.join(subj)}."
 
                 photo_rel = f"/assets/uploads/{gender}/{fname}"
                 class_size = random_int(1, 5)

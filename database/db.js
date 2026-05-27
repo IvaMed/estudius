@@ -2,13 +2,13 @@
 // CAPA DE DATOS - Conexión y Inicialización de BD
 // =====================================================
 
-const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
+const sqlite3 = require(path.join(__dirname, '../Backend/node_modules/sqlite3')).verbose();
 
 // Ruta de la base de datos
-const dbPath = path.join(__dirname, '../../database/estudius.db');
-const schemaPath = path.join(__dirname, '../../database/schema.sql');
+const dbPath = path.join(__dirname, 'estudius.db');
+const schemaPath = path.join(__dirname, 'schema.sql');
 
 // Crear conexión
 const db = new sqlite3.Database(dbPath, (err) => {
@@ -23,6 +23,19 @@ const db = new sqlite3.Database(dbPath, (err) => {
 // Habilitar foreign keys
 db.run('PRAGMA foreign_keys = ON');
 
+function inferSubjectIcon(name = '') {
+  const value = String(name || '').toLowerCase();
+  if (value.includes('matem') || value.includes('álgebra') || value.includes('algebra') || value.includes('estad')) return '📐';
+  if (value.includes('fís') || value.includes('fis') || value.includes('mecán') || value.includes('mecan') || value.includes('electr')) return '⚛️';
+  if (value.includes('quím') || value.includes('quim') || value.includes('biolog')) return '🧪';
+  if (value.includes('hist') || value.includes('geograf') || value.includes('cívica') || value.includes('civica') || value.includes('filos') || value.includes('psic') || value.includes('econom') || value.includes('derecho')) return '📚';
+  if (value.includes('program') || value.includes('algorit') || value.includes('base de datos') || value.includes('desarrollo web') || value.includes('ciber')) return '💻';
+  if (value.includes('inglés') || value.includes('ingles') || value.includes('franc') || value.includes('alem') || value.includes('ital') || value.includes('portugu') || value.includes('japon') || value.includes('chino')) return '🗣️';
+  if (value.includes('dibujo') || value.includes('pintura') || value.includes('música') || value.includes('musica')) return '🎨';
+  if (value.includes('marketing') || value.includes('admin')) return '📈';
+  return '📘';
+}
+
 // Función para inicializar la base de datos
 async function initializeDatabase() {
   try {
@@ -36,9 +49,83 @@ async function initializeDatabase() {
       } else {
         console.log('[OK] Base de datos inicializada correctamente');
 
+        try {
+          await dbRun(`CREATE TABLE IF NOT EXISTS user_favorites (
+            userId INTEGER NOT NULL,
+            teacherId INTEGER NOT NULL,
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (userId, teacherId),
+            FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (teacherId) REFERENCES teachers(id) ON DELETE CASCADE
+          )`);
+          await dbRun('CREATE INDEX IF NOT EXISTS idx_favorites_teacher ON user_favorites(teacherId)');
+        } catch (favErr) {
+          console.error('[WARN] Tabla user_favorites:', favErr.message || favErr);
+        }
+
+        try {
+          const bcols = await new Promise((resolve, reject) => {
+            db.all('PRAGMA table_info(bookings)', [], (e, rows) => (e ? reject(e) : resolve(rows)));
+          });
+          const hasSess = Array.isArray(bcols) && bcols.some((c) => c.name === 'sessionModality');
+          if (!hasSess) {
+            await dbRun('ALTER TABLE bookings ADD COLUMN sessionModality TEXT');
+            console.log('[OK] Columna sessionModality en bookings');
+          }
+        } catch (bmErr) {
+          console.error('[WARN] Migración sessionModality bookings:', bmErr.message || bmErr);
+        }
+
+        try {
+          const bsub = await dbAll('PRAGMA table_info(bookings)');
+          const hasSubjects = Array.isArray(bsub) && bsub.some((c) => c.name === 'bookingSubjects');
+          if (!hasSubjects) {
+            await dbRun('ALTER TABLE bookings ADD COLUMN bookingSubjects TEXT');
+            console.log('[OK] Columna bookingSubjects en bookings');
+          }
+        } catch (bsErr) {
+          console.error('[WARN] Migración bookingSubjects:', bsErr.message || bsErr);
+        }
+
+        try {
+          const tcols = await dbAll('PRAGMA table_info(teachers)');
+          const hasStreet = Array.isArray(tcols) && tcols.some((c) => c.name === 'locationStreet');
+          if (!hasStreet) {
+            await dbRun('ALTER TABLE teachers ADD COLUMN locationStreet TEXT');
+            await dbRun('ALTER TABLE teachers ADD COLUMN locationNumber TEXT');
+            await dbRun('ALTER TABLE teachers ADD COLUMN locationApartment TEXT');
+            console.log('[OK] Columnas de ubicación (calle/número/dpto) en teachers');
+          }
+          const { formatTeacherAddress } = require('../Backend/lib/locationUtils');
+          const legacyRows = await dbAll(
+            `SELECT id, location, locationStreet, locationNumber FROM teachers
+             WHERE location IS NOT NULL AND TRIM(location) != ''
+               AND (locationStreet IS NULL OR TRIM(locationStreet) = '')`
+          );
+          for (const row of legacyRows || []) {
+            const legacy = String(row.location || '').trim();
+            await dbRun(
+              'UPDATE teachers SET locationStreet = ?, locationNumber = ? WHERE id = ?',
+              [legacy, 'S/N', row.id]
+            );
+          }
+          const needFmt = await dbAll(
+            `SELECT id, locationStreet, locationNumber, locationApartment, location FROM teachers
+             WHERE locationStreet IS NOT NULL AND TRIM(locationStreet) != ''`
+          );
+          for (const row of needFmt || []) {
+            const formatted = formatTeacherAddress(row);
+            if (formatted && formatted !== row.location) {
+              await dbRun('UPDATE teachers SET location = ? WHERE id = ?', [formatted, row.id]);
+            }
+          }
+        } catch (locErr) {
+          console.error('[WARN] Migración ubicación teachers:', locErr.message || locErr);
+        }
+
         // Palette de colores (evitar blanco/negro)
         const palette = [
-          '#587D71','#8EA8C3','#F9FFE9','#274580','#1C2E57','#FFDB43','#4CAF50','#FFC107','#F44336','#2196F3','#9C27B0','#00BCD4'
+          '#587D71', '#8EA8C3', '#274580', '#1C2E57', '#2E6B55', '#4CAF50', '#C62828', '#1565C0', '#6A1B9A', '#00838F', '#E65100', '#5D4037'
         ];
 
         const simpleHash = (s) => {
@@ -125,8 +212,68 @@ async function initializeDatabase() {
           } catch (err) {
             console.error('Error asignando colores a usuarios existentes:', err.message || err);
           }
+
+          try {
+            const r = await dbRun(
+              `UPDATE users SET color = '#274580' WHERE LOWER(TRIM(color)) IN (
+                '#f9ffe9','#ffffff','#fff','#fffff0','#fafafa','#fefefe','#f5f5f5','#fffacd','#fff8dc'
+              )`
+            );
+            if (r && r.changes > 0) {
+              console.log('[OK] Colores de avatar demasiado claros reemplazados:', r.changes);
+            }
+          } catch (e2) {
+            console.warn('[WARN] Migración colores claros:', e2.message || e2);
+          }
             } catch (err) {
               console.error('Error sembrando admin:', err.message || err);
+            }
+
+            // Migración: ampliar límite classSize a <= 40 si la tabla vieja usa < 30
+            try {
+              const tableInfo = await dbGet("SELECT sql FROM sqlite_master WHERE type='table' AND name='teachers'");
+              const tableSql = String(tableInfo && tableInfo.sql ? tableInfo.sql : '').toLowerCase();
+              if (tableSql.includes('classsize < 30')) {
+                await dbRun('BEGIN TRANSACTION');
+                await dbRun(`CREATE TABLE IF NOT EXISTS teachers_new (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  firstName TEXT NOT NULL,
+                  lastName TEXT NOT NULL,
+                  age INTEGER NOT NULL CHECK(age > 0 AND age < 150),
+                  email TEXT NOT NULL UNIQUE,
+                  phone TEXT,
+                  description TEXT NOT NULL,
+                  curriculum TEXT NOT NULL,
+                  photo TEXT,
+                  classSize INTEGER NOT NULL CHECK(classSize > 0 AND classSize <= 40),
+                  subjects TEXT NOT NULL,
+                  modality TEXT NOT NULL CHECK(modality IN ('virtual', 'presencial')),
+                  modalities TEXT,
+                  schedules TEXT NOT NULL,
+                  location TEXT,
+                  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+                  updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+                  views INTEGER DEFAULT 0
+                )`);
+                await dbRun(`INSERT INTO teachers_new (
+                  id, firstName, lastName, age, email, phone, description, curriculum, photo, classSize,
+                  subjects, modality, modalities, schedules, location, createdAt, updatedAt, views
+                ) SELECT
+                  id, firstName, lastName, age, email, phone, description, curriculum, photo, classSize,
+                  subjects, modality, modalities, schedules, location, createdAt, updatedAt, views
+                FROM teachers`);
+                await dbRun('DROP TABLE teachers');
+                await dbRun('ALTER TABLE teachers_new RENAME TO teachers');
+                await dbRun('CREATE INDEX IF NOT EXISTS idx_email ON teachers(email)');
+                await dbRun('CREATE INDEX IF NOT EXISTS idx_subjects ON teachers(subjects)');
+                await dbRun('CREATE INDEX IF NOT EXISTS idx_modality ON teachers(modality)');
+                await dbRun('CREATE INDEX IF NOT EXISTS idx_views ON teachers(views)');
+                await dbRun('COMMIT');
+                console.log('[OK] Migración aplicada: classSize <= 40');
+              }
+            } catch (err) {
+              try { await dbRun('ROLLBACK'); } catch (e) { /* ignore */ }
+              console.error('Error migrando classSize a <= 40:', err.message || err);
             }
 
             // Crear tablas para características (categorías + items) y sembrar valores por defecto
@@ -136,6 +283,7 @@ async function initializeDatabase() {
                 type TEXT NOT NULL,
                 name TEXT NOT NULL,
                 slug TEXT,
+                icon TEXT,
                 createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
               )`);
 
@@ -144,38 +292,118 @@ async function initializeDatabase() {
                 categoryId INTEGER NOT NULL,
                 name TEXT NOT NULL,
                 slug TEXT,
+                icon TEXT,
                 position INTEGER DEFAULT 0,
                 createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (categoryId) REFERENCES feature_categories(id) ON DELETE CASCADE
               )`);
 
+              const categoryCols = await dbAll('PRAGMA table_info(feature_categories)');
+              const hasCategoryIcon = Array.isArray(categoryCols) && categoryCols.some(c => c.name === 'icon');
+              if (!hasCategoryIcon) {
+                await dbRun('ALTER TABLE feature_categories ADD COLUMN icon TEXT');
+              }
+
+              const itemCols = await dbAll('PRAGMA table_info(feature_items)');
+              const hasItemIcon = Array.isArray(itemCols) && itemCols.some(c => c.name === 'icon');
+              if (!hasItemIcon) {
+                await dbRun('ALTER TABLE feature_items ADD COLUMN icon TEXT');
+              }
+
               const cnt = await dbGet('SELECT COUNT(*) as cnt FROM feature_categories', []);
               if (!cnt || !cnt.cnt) {
                 const subjectsSeed = {
-                  'Materias escolares clásicas': ['Matemática','Lengua','Historia','Geografía','Biología','Física','Química','Educación Cívica','Filosofía','Psicología','Economía'],
-                  'Materias de nivel universitario': ['Análisis Matemático','Álgebra Lineal','Estadística y probabilidad','Mecánica','Electrónica','Química Orgánica','Química Inorgánica','Marketing','Derecho','Administración'],
-                  'Materias Informáticas': ['Programación','Desarrollo Web','Bases de Datos','Algoritmos','Ciberseguridad'],
-                  'Idiomas': ['Inglés','Portugués','Francés','Italiano','Alemán','Chino','Japonés'],
-                  'Materias Artísticas': ['Dibujo','Música','Pintura']
+                  'Materias escolares clásicas': { icon: '🏫', items: ['Matemática','Lengua','Historia','Geografía','Biología','Física','Química','Educación Cívica','Filosofía','Psicología','Economía'] },
+                  'Materias de nivel universitario': { icon: '🎓', items: ['Análisis Matemático','Álgebra Lineal','Estadística y probabilidad','Mecánica','Electrónica','Química Orgánica','Química Inorgánica','Marketing','Derecho','Administración'] },
+                  'Materias Informáticas': { icon: '💻', items: ['Programación','Desarrollo Web','Bases de Datos','Algoritmos','Ciberseguridad'] },
+                  'Idiomas': { icon: '🌍', items: ['Inglés','Portugués','Francés','Italiano','Alemán','Chino','Japonés'] },
+                  'Materias Artísticas': { icon: '🎨', items: ['Dibujo','Música','Pintura'] }
                 };
 
                 const slugify = s => String(s || '').toLowerCase().replace(/[^a-z0-9áéíóúñ\s-]/g,'').trim().replace(/\s+/g,'-');
 
-                for (const [catName, items] of Object.entries(subjectsSeed)) {
-                  const r = await dbRun('INSERT INTO feature_categories (type, name, slug) VALUES (?, ?, ?)', ['subject', catName, slugify(catName)]);
+                for (const [catName, data] of Object.entries(subjectsSeed)) {
+                  const r = await dbRun('INSERT INTO feature_categories (type, name, slug, icon) VALUES (?, ?, ?, ?)', ['subject', catName, slugify(catName), data.icon]);
                   const catId = r.id;
-                  for (const it of items) {
-                    await dbRun('INSERT INTO feature_items (categoryId, name, slug) VALUES (?, ?, ?)', [catId, it, slugify(it)]);
+                  for (const it of data.items) {
+                    await dbRun('INSERT INTO feature_items (categoryId, name, slug, icon) VALUES (?, ?, ?, ?)', [catId, it, slugify(it), '📘']);
                   }
                 }
+                console.log('[OK] Características sembradas (materias)');
+              }
 
-                // Modalidades: crear categorías 'virtual' y 'presencial'
-                const m1 = await dbRun('INSERT INTO feature_categories (type, name, slug) VALUES (?, ?, ?)', ['modality', 'virtual', 'virtual']);
-                const m2 = await dbRun('INSERT INTO feature_categories (type, name, slug) VALUES (?, ?, ?)', ['modality', 'presencial', 'presencial']);
-                console.log('[OK] Características sembradas (materias y modalidades)');
+              // Eliminar modalidad como característica configurable
+              await dbRun("DELETE FROM feature_categories WHERE type = 'modality'");
+              // Backfill de íconos para materias existentes (emoji representativo)
+              const subjectItems = await dbAll(`
+                SELECT fi.id, fi.name, fi.icon
+                FROM feature_items fi
+                INNER JOIN feature_categories fc ON fc.id = fi.categoryId
+                WHERE fc.type = 'subject'
+              `);
+              for (const item of subjectItems || []) {
+                const currentIcon = String(item.icon || '').trim();
+                if (!currentIcon || currentIcon === '📘') {
+                  await dbRun('UPDATE feature_items SET icon = ? WHERE id = ?', [inferSubjectIcon(item.name), item.id]);
+                }
               }
             } catch (err) {
               console.error('Error creando/sembrando características:', err.message || err);
+            }
+
+            // Migración: horarios en texto libre o JSON incompleto -> formato estructurado v1
+            try {
+              const {
+                migrateLegacyScheduleText,
+                serializeScheduleForDb,
+                isAlreadyMigratedDbString,
+                canonicalSchedule
+              } = require('../Backend/lib/scheduleUtils');
+              const rows = await dbAll('SELECT id, schedules FROM teachers');
+              let updated = 0;
+              for (const row of rows || []) {
+                const raw = row.schedules;
+                if (isAlreadyMigratedDbString(raw)) continue;
+                let out;
+                try {
+                  const j = JSON.parse(String(raw));
+                  if (Array.isArray(j)) {
+                    out = serializeScheduleForDb({ version: 1, slots: j, flexible: false, notes: '' });
+                  } else if (j && typeof j === 'object' && Array.isArray(j.slots)) {
+                    out = serializeScheduleForDb(canonicalSchedule(j));
+                  } else {
+                    out = serializeScheduleForDb(migrateLegacyScheduleText(raw));
+                  }
+                } catch (_) {
+                  out = serializeScheduleForDb(migrateLegacyScheduleText(raw));
+                }
+                await dbRun('UPDATE teachers SET schedules = ? WHERE id = ?', [out, row.id]);
+                updated++;
+              }
+              if (updated > 0) {
+                console.log('[OK] Migración horarios estructurados aplicada a', updated, 'profesor(es)');
+              }
+
+              // Asegurar que ningún profesor quede sin franjas (p.ej. JSON flexible con slots vacíos)
+              try {
+                const { parseSchedulesField, serializeScheduleForDb } = require('../Backend/lib/scheduleUtils');
+                const allTeachers = await dbAll('SELECT id, schedules FROM teachers');
+                let norm = 0;
+                for (const row of allTeachers || []) {
+                  const out = serializeScheduleForDb(parseSchedulesField(row.schedules));
+                  if (out !== String(row.schedules)) {
+                    await dbRun('UPDATE teachers SET schedules = ? WHERE id = ?', [out, row.id]);
+                    norm++;
+                  }
+                }
+                if (norm > 0) {
+                  console.log('[OK] Normalización de horarios (mínimo una franja):', norm, 'profesor(es)');
+                }
+              } catch (err) {
+                console.error('Error normalizando horarios sin franjas:', err.message || err);
+              }
+            } catch (err) {
+              console.error('Error migrando horarios estructurados:', err.message || err);
             }
       }
     });

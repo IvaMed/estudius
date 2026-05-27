@@ -7,7 +7,7 @@ const TeacherRepository = require('./data/teacherRepository');
 
 (async function main() {
   try {
-    const uploadsDir = path.join(__dirname, '../frontend/assets/uploads');
+    const uploadsDir = path.join(__dirname, '../Frontend/Assets/uploads');
     const genders = ['hombres', 'mujeres'];
     let images = [];
 
